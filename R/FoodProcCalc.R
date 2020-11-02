@@ -88,12 +88,19 @@ foodProcessingComputation <- function(SUAinput, treeNewER, primary){
     toDeviate2proc2 <- unique(toDeviate2proc[, .( geographicAreaM49_fi, timePointYears, parent_secondary, parent_primary, 
                                                   availability_primary, processing, secondLevelProcessing, weight, 
                                                   extraction_rate, availability_secondary)])
-    problems$primary <- list(msg = msg1, tab = rank1availCheck[ , .(geographicAreaM49_fi,
-                                                                    timePointYears,
-                                                                    parent_secondary,
-                                                                    parent_primary,
-                                                                    availability_primary,
-                                                                    Value)])
+    # problems$primary <- list(msg = msg1, tab = rank1availCheck[ , .(geographicAreaM49_fi,
+    #                                                                 timePointYears,
+    #                                                                 parent_secondary,
+    #                                                                 parent_primary,
+    #                                                                 availability_primary,
+    #                                                                 Value)])
+    problems$primary <- rank1availCheck[ , .(geographicAreaM49_fi,
+                                             timePointYears,
+                                             parent_secondary,
+                                             parent_primary,
+                                             availability_primary,
+                                             Value)]
+    
     # If availability for secondary products was negative then production has been artificially increased so
     # secondary availability is 0 and not negative
     #toDeviate2proc2[availability_secondary < 0, availability_secondary := 0]
@@ -116,19 +123,26 @@ foodProcessingComputation <- function(SUAinput, treeNewER, primary){
     }
     msg2 <- ifelse(nrow(insufficiency) > 0, msg2, 'Total secondary availability can cover remaining secondary production. Level by level availability to be checked.')
     
-    problems$secondaryTot <- list(msg = msg2, tab = insufficiency[ , .(geographicAreaM49_fi,
-                                                                       timePointYears,
-                                                                       parent_primary,
-                                                                       AvailableQuantity = (availability_secondary_primEq_tot),
-                                                                       Quantity2cover = (secondLevelProcessing)*(-1))])
+    # problems$secondaryTot <- list(msg = msg2, tab = insufficiency[ , .(geographicAreaM49_fi,
+    #                                                                    timePointYears,
+    #                                                                    parent_primary,
+    #                                                                    AvailableQuantity = (availability_secondary_primEq_tot),
+    #                                                                    Quantity2cover = (secondLevelProcessing)*(-1))])
+    
+    problems$secondaryTot <- insufficiency[ , .(geographicAreaM49_fi,
+                                                timePointYears,
+                                                parent_primary,
+                                                AvailableQuantity = (availability_secondary_primEq_tot),
+                                                Quantity2cover = (secondLevelProcessing)*(-1))]
+    
     ##############################################################  
     #-- NEW PART ----  
     # Put unrealistic values to primary products for which there is not enough availability to cover production
-    data131covered <- merge(data131, insufficiency[ , .(geographicAreaM49_fi, timePointYears, parent_primary, availability_primary)],
-                            by.x = c('geographicAreaM49_fi', 'measuredItemFaostat_L2', 'timePointYears'),
-                            by.y = c('geographicAreaM49_fi', 'parent_primary', 'timePointYears'),
-                            all = TRUE)
-    data131covered[!is.na(availability_primary), processing := -9999]
+    # data131covered <- merge(data131, insufficiency[ , .(geographicAreaM49_fi, timePointYears, parent_primary, availability_primary)],
+    #                         by.x = c('geographicAreaM49_fi', 'measuredItemFaostat_L2', 'timePointYears'),
+    #                         by.y = c('geographicAreaM49_fi', 'parent_primary', 'timePointYears'),
+    #                         all = TRUE)
+    # data131covered[!is.na(availability_primary), processing := -9999]
     
     # Exclude the products that cannot be covered
     toDeviateCovered <- merge(toDeviate2proc2[, .(geographicAreaM49_fi,
@@ -142,7 +156,7 @@ foodProcessingComputation <- function(SUAinput, treeNewER, primary){
                               insufficiency[ , .(geographicAreaM49_fi, timePointYears, parent_primary, availability_primary)], 
                               by = c('geographicAreaM49_fi', 'timePointYears', 'parent_primary'), all = TRUE)
     
-    toDeviateCovered <- toDeviateCovered[!is.na(availability_primary)]
+    toDeviateCovered <- toDeviateCovered[is.na(availability_primary)] ### !!!!
     toDeviateCovered[ , availability_primary := NULL]
     setkey(toDeviateCovered)
     toDeviateCovered <- unique(toDeviateCovered)
@@ -194,11 +208,17 @@ foodProcessingComputation <- function(SUAinput, treeNewER, primary){
       }
       msg3 <- ifelse(nrow(unavailable) > 0, msg3, 'Enough rank 2 secondary parent to cover rank 3 children (see commodity tree).')
       
-      problems$secondary <- list(msg = msg3, tab = unavailable[ , .(geographicAreaM49_fi,
-                                                                    timePointYears,
-                                                                    parent_primary,
-                                                                    parent_needed,
-                                                                    Quantity2cover = (thirdLevelProcessing_needed))] )
+      # problems$secondary <- list(msg = msg3, tab = unavailable[ , .(geographicAreaM49_fi,
+      #                                                               timePointYears,
+      #                                                               parent_primary,
+      #                                                               parent_needed,
+      #                                                               Quantity2cover = (thirdLevelProcessing_needed))] )
+      # 
+      problems$secondary <- unavailable[ , .(geographicAreaM49_fi,
+                                             timePointYears,
+                                             parent_primary,
+                                             parent_needed,
+                                             Quantity2cover = (thirdLevelProcessing_needed))]
       
       secondaryFP2 <- copy(secondaryFPneeded)
       secondaryFP2[is.na(parent_available), availability_secondary_primEq_available := 0]
@@ -240,13 +260,21 @@ foodProcessingComputation <- function(SUAinput, treeNewER, primary){
         }
         msg4 <- ifelse(nrow(unavailable3) > 0, msg4, 'Enough rank 3 secondary parent to cover rank 4 children (see commodity tree).')
         
-        problems$tertiary <- list(msg = msg4, tab = unavailable3[ , .(geographicAreaM49_fi,
-                                                                      timePointYears,
-                                                                      parent_primary,
-                                                                      parent_needed,
-                                                                      Quantity2cover = (fourthLevelProcessing_needed))] )
+        # problems$tertiary <- list(msg = msg4, tab = unavailable3[ , .(geographicAreaM49_fi,
+        #                                                               timePointYears,
+        #                                                               parent_primary,
+        #                                                               parent_needed,
+        #                                                               Quantity2cover = (fourthLevelProcessing_needed))] )
+        # 
+        problems$tertiary <- unavailable3[ , .(geographicAreaM49_fi,
+                                               timePointYears,
+                                               parent_primary,
+                                               parent_needed,
+                                               Quantity2cover = (fourthLevelProcessing_needed))]
+
         
         secondaryFP3 <- copy(tertiaryFPneeded)
+        
         secondaryFP3[is.na(parent_available), availability_secondary_primEq_available := 0]
         
         secondaryFP3 <- secondaryFP3[ ,rank3Processing := ifelse(availability_secondary_primEq_available  > fourthLevelProcessing_needed, 
@@ -285,11 +313,18 @@ foodProcessingComputation <- function(SUAinput, treeNewER, primary){
           }
           msg5 <- ifelse(nrow(unavailable4) > 0, msg5, 'Enough rank 4 secondary parent to cover remaining children (see commodity tree).')
           
-          problems$quaternary <- list(msg = msg5, tab =unavailable4[ , .(geographicAreaM49_fi,
-                                                                         timePointYears,
-                                                                         parent_primary,
-                                                                         parent_needed,
-                                                                         Quantity2cover = (fifthLevelProcessing_needed))])
+          # problems$quaternary <- list(msg = msg5, tab =unavailable4[ , .(geographicAreaM49_fi,
+          #                                                                timePointYears,
+          #                                                                parent_primary,
+          #                                                                parent_needed,
+          #                                                                Quantity2cover = (fifthLevelProcessing_needed))])
+          
+          problems$quaternary <- unavailable4[ , .(geographicAreaM49_fi,
+                                                   timePointYears,
+                                                   parent_primary,
+                                                   parent_needed,
+                                                   Quantity2cover = (fifthLevelProcessing_needed))]
+          
           
           secondaryFP4 <- copy(quaternaryFPneeded)
           secondaryFP4[is.na(parent_available), availability_secondary_primEq_available := 0]
@@ -332,6 +367,7 @@ foodProcessingComputation <- function(SUAinput, treeNewER, primary){
     NotCovered <- processingLevelsComputed[ , .(geographicAreaM49_fi, parent_primary, timePointYears, secondLevelProcessing, extraction_rate, foodProcessingSecondary)]
     setkey(NotCovered)
     NotCovered <- unique(NotCovered)
+    
     if(nrow(NotCovered) > 0){
       NotCovered[ , foodProcessingSecondary_primEq := foodProcessingSecondary/extraction_rate ]
       NotCovered[ , c('secondLevelProcessing',  'foodProcessingSecondary_primEq') := list(secondLevelProcessing,

@@ -1,3 +1,5 @@
+# Extraction rates tab
+
 extrR_reac <- reactive({
   
   sel_country <- country_input[country_input$label == input$btn_country, code]
@@ -15,8 +17,8 @@ extrR_reac <- reactive({
       }
     } else {
       R_SWS_SHARE_PATH = "Z:"
-      SetClientFiles("/srv/shiny-server/shinyFi_SUAFBS")
-      GetTestEnvironment(baseUrl = "https://hqlqasws1.hq.un.fao.org:8181/sws",
+      SetClientFiles("/srv/shiny-server/.R/QA/")
+      GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
                          token = tokenSuaB)
     }
 
@@ -25,7 +27,7 @@ extrR_reac <- reactive({
     measuredElementSuaFbs = Dimension(name = "measuredElementSuaFbs", 
                                       keys = '5423'), 
     measuredItemFaostat_L2 = Dimension(name = "measuredItemFaostat_L2", 
-                                       keys = GetCodeList("FisheriesCommodities", "fi_sua_balanced_control","measuredItemFaostat_L2" )[,code]),
+                                       keys = GetCodeList("FisheriesCommodities", "fi_sua_balanced","measuredItemFaostat_L2" )[,code]),
     timePointYears = Dimension(name = "timePointYears", keys = sel_years )))
   
   withProgress(message = 'Extraction rate data loading in progress',
@@ -45,6 +47,19 @@ extrR_reac <- reactive({
   }
   
   
+  if(nrow(SUAbalEr) == 0){
+    
+    ny <- length(sel_years)
+    
+    SUAbalEr <- rbind(SUAbalEr, data.table(geographicAreaM49_fi = rep(sel_country, ny),
+                                           measuredElementSuaFbs = rep('5423', ny),
+                                           timePointYears = sel_years,
+                                           flagObservationStatus = rep('E', ny),
+                                           flagMethod = rep('f', ny)),
+                       fill = T)
+  }
+  
+  
   return(SUAbalEr)
 })
 
@@ -52,7 +67,7 @@ output$extrR <-  renderRHandsontable({
   
   table <- extrR_reac()
   
-  rhandsontable(table, rowHeaders = NULL, width = 'auto', height = 'auto') 
+  rhandsontable(table, rowHeaders = NULL, width = 'auto', height = 'auto', digits = 6) 
 })
 
 new_extr_rate <- reactiveValues(eR = data.table())
@@ -70,10 +85,11 @@ observeEvent(input$updER, {
       GetTestEnvironment(baseUrl = SETTINGS[["server"]],
                          token = tokenSuaB)
     }
-  } else {
+  
+    } else {
     R_SWS_SHARE_PATH = "Z:"
-    SetClientFiles("/srv/shiny-server/shinyFi_SUAFBS")
-    GetTestEnvironment(baseUrl = "https://hqlqasws1.hq.un.fao.org:8181/sws",
+    SetClientFiles("/srv/shiny-server/.R/QA/")
+    GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
                        token = tokenSuaB)
   }
   
@@ -83,16 +99,18 @@ observeEvent(input$updER, {
     measuredElementSuaFbs = Dimension(name = "measuredElementSuaFbs", 
                                       keys = '5423'), 
     measuredItemFaostat_L2 = Dimension(name = "measuredItemFaostat_L2", 
-                                       keys = GetCodeList("FisheriesCommodities", "fi_sua_balanced_control","measuredItemFaostat_L2" )[,code]),
+                                       keys = GetCodeList("FisheriesCommodities", "fi_sua_balanced","measuredItemFaostat_L2" )[,code]),
     timePointYears = Dimension(name = "timePointYears", keys = sel_years )))
   
   SUAbalEr <- GetData(KeySUAbal)
   
   # copy to compare tables with right decimals number
-  
+
   SUAbalErComp <- copy(SUAbalEr)
-  SUAbalErComp$Value <- round(SUAbalErComp$Value, 4)   
+  SUAbalErComp$Value <- round(SUAbalErComp$Value,2)   
   updER <- rhandsontable::hot_to_r(input$extrR)
+  
+  if(nrow(SUAbalErComp) > 0){
 
   changed <- length(updER[Value != SUAbalErComp$Value, ]$Value)
   
@@ -105,7 +123,7 @@ observeEvent(input$updER, {
                                               'measuredItemFaostat_L2', 'timePointYears'),
                    all = TRUE, suffixes = c('Old', 'New'))
     
-    eRupd[!is.na(ValueNew) & ValueNew != ValueOld, c('ValueOld',
+    eRupd[!is.na(ValueNew) | ValueNew != ValueOld, c('ValueOld',
                                                      'flagObservationStatusOld',
                                                      'flagMethodOld') := list(ValueNew, 'E', 'f')]
     setnames(eRupd, c('ValueOld',
@@ -129,7 +147,8 @@ observeEvent(input$updER, {
       sprintf("The new figures have been saved.")
     ))
     
-  } else if(input$radioErUpdt == 2) {
+  
+    } else if(input$radioErUpdt == 2) {
     
     if(changed == 1){
     eRupd <- SUAbalEr[timePointYears %in% sel_years & 
@@ -150,126 +169,29 @@ observeEvent(input$updER, {
       title = "Extraction rates updated." ,
       sprintf("The new figures have been saved.")
     ))
+  
+    }
+  
+  
+  } else {
     
-  } else if(input$radioErUpdt == 3){
-    # if(changed == 1){
-    # 
-    #   
-    #   if(CheckDebug()){
-    #     
-    #     library(faoswsModules)
-    #     SETTINGS = ReadSettings("sws.yml")
-    #     
-    #     ## If you're not on the system, your settings will overwrite any others
-    #     R_SWS_SHARE_PATH = SETTINGS[["share"]]
-    #     
-    #     ## Define where your certificates are stored
-    #     SetClientFiles(SETTINGS[["certdir"]])
-    #     
-    #     ## Get session information from SWS. Token must be obtained from web interface
-    #     GetTestEnvironment(baseUrl = SETTINGS[["server"]],
-    #                        token = tokenSuaB)
-    #     
-    #   }
-    #   
-    #   # R_SWS_SHARE_PATH = "Z:"
-    #   # SetClientFiles("/srv/shiny-server/shinyFisheriesCommodities")
-    #   # GetTestEnvironment(baseUrl = "https://hqlqasws1.hq.un.fao.org:8181/sws",
-    #   #                    token = tokenSuaB)
-    #   
-    #   KeySUAbal <- DatasetKey(domain = "FisheriesCommodities", dataset = "fi_sua_balanced", dimensions = list(
-    #     geographicAreaM49_fi = Dimension(name = "geographicAreaM49_fi", keys = sel_country),
-    #     measuredElementSuaFbs = Dimension(name = "measuredElementSuaFbs", 
-    #                                       keys = '5423'), 
-    #     measuredItemFaostat_L2 = Dimension(name = "measuredItemFaostat_L2", 
-    #                                        keys = GetCodeList("FisheriesCommodities", "fi_sua_balanced_control","measuredItemFaostat_L2" )[,code]),
-    #     timePointYears = Dimension(name = "timePointYears", keys = as.character(1961:as.numeric(input$btn_year)))))
-    #   
-    #   withProgress(message = 'Extraction rate data loading in progress',
-    #                value = 0, {
-    #                  
-    #                  Sys.sleep(0.25)
-    #                  incProgress(0.25)
-    #                  SUAbalErTot <- GetData(KeySUAbal)
-    #                  Sys.sleep(0.75)
-    #                  incProgress(0.95)
-    #                })
-    #   
-    #   eRupd <- SUAbalErTot[timePointYears %in% as.character(1961:as.numeric(input$btn_year)) & 
-    #                     measuredItemFaostat_L2 %in% newValue$measuredItemFaostat_L2, 
-    #                   c('Value', 'flagObservationStatus','flagMethod') := list(newValue$Value, 'E', 'f')]
-    #   
-    #   
-    #   # SaveData() to SUA balanced or Unbalanced?
-    # } else if (changed > 1)
-    #   {
-    #   
-    #   if(CheckDebug()){
-    #     
-    #     library(faoswsModules)
-    #     SETTINGS = ReadSettings("sws.yml")
-    #     
-    #     ## If you're not on the system, your settings will overwrite any others
-    #     R_SWS_SHARE_PATH = SETTINGS[["share"]]
-    #     
-    #     ## Define where your certificates are stored
-    #     SetClientFiles(SETTINGS[["certdir"]])
-    #     
-    #     ## Get session information from SWS. Token must be obtained from web interface
-    #     GetTestEnvironment(baseUrl = SETTINGS[["server"]],
-    #                        token = tokenSuaB)
-    #     
-    #   }
-    #   
-    #   # R_SWS_SHARE_PATH = "Z:"
-    #   # SetClientFiles("/srv/shiny-server/shinyFisheriesCommodities")
-    #   # GetTestEnvironment(baseUrl = "https://hqlqasws1.hq.un.fao.org:8181/sws",
-    #   #                    token = tokenSuaB)
-    #   
-    #   KeySUAbal <- DatasetKey(domain = "FisheriesCommodities", dataset = "fi_sua_balanced", dimensions = list(
-    #     geographicAreaM49_fi = Dimension(name = "geographicAreaM49_fi", keys = sel_country),
-    #     measuredElementSuaFbs = Dimension(name = "measuredElementSuaFbs", 
-    #                                       keys = '5423'), 
-    #     measuredItemFaostat_L2 = Dimension(name = "measuredItemFaostat_L2", 
-    #                                        keys = GetCodeList("FisheriesCommodities", "fi_sua_balanced_control","measuredItemFaostat_L2" )[,code]),
-    #     timePointYears = Dimension(name = "timePointYears", keys = as.character(1961:as.numeric(input$btn_year)))))
-    #   
-    #   withProgress(message = 'Extraction rate data loading in progress',
-    #                value = 0, {
-    #                  
-    #                  Sys.sleep(0.25)
-    #                  incProgress(0.25)
-    #                  SUAbalErTot <- GetData(KeySUAbal)
-    #                  Sys.sleep(0.75)
-    #                  incProgress(0.95)
-    #                })
-    #   
-    #   for(i in 1:changed){
-    #     eRupd <- SUAbalErTot
-    #     eRupd <- SUAbalErTot[timePointYears %in% as.character(1961:as.numeric(input$btn_year)) & 
-    #                         measuredItemFaostat_L2 %in% newValue$measuredItemFaostat_L2[i], 
-    #                       c('Value', 'flagObservationStatus', 'flagMethod') := list(newValue$Value[i], 'E', 'f')]
-    #   }
-    #   
-    #   # SaveData() to SUA balanced or Unbalanced?
-    #   } 
+    if(input$radioErUpdt == 1){
+      eRupd <- updER[!is.na(Value)]
+    } else if(input$radioErUpdt == 2) {
+
+      eRupd <-  updER[rep(seq_len(nrow(updER[!is.na(Value)])), each = length(sel_years)), ]
+      for(i in unique(eRupd$measuredItemFaostat_L2)){
+        eRupd[measuredItemFaostat_L2 == i]$timePointYears <- sel_years
+      }
+      
+    }
     
     showModal(modalDialog(
-      title = 'Function not active'
-      # title = "Extraction rates updated." ,
-      # sprintf("The new figures have been saved.")
+      title = "Extraction rates updated." ,
+      sprintf("The new figures have been saved.")
     ))
-    
-  } # else if (input$radioErUpdt != 1 & changed > 1){
-    
-    # showModal(modalDialog(
-    #   title = "Extraction cannot be updated." ,
-    #   sprintf("Please change only one rate if you want a time series to be changed.")
-    # ))
-    
-    # eRupd <- copy(SUAbalEr)
-    
- # }
+  }
+  
   
   new_extr_rate$eR <- eRupd[timePointYears %in% sel_years]
   

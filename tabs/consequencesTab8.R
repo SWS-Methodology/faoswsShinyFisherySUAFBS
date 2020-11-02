@@ -1,6 +1,5 @@
 # Eighth tab, showing changes consequences
 
-
 consequenceTab_reac <- reactive({
   
   req(input$btn_country, input$btn_year, input$btn_start_year, input$btn_element_fbs)
@@ -127,15 +126,5 @@ output$gg_plot_tab8 <- renderPlot({
     facet_wrap( ~ measuredItemFaostat_L2, scales="free") +
     labs(x = 'Year', color = '') +
     theme(text = element_text(size= 15))
-  
-})
-
-observeEvent(input$update,  {
-  browser()
-  # SaveData()
-  # updated_data$SUAunbal 
-  # updated_data$SUAbal
-  # updated_data$FBSfias 
-  # updated_data$FBSfaostat
   
 })

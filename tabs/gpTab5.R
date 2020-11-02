@@ -71,24 +71,28 @@ gpTab_reac <- reactive({
                                by.x = 'ICSProd', by.y = 'code_l2')
   
   # globalProductionMapping[ , c('Ratio', 'Selection') := list(1, TRUE)]
-  gp_map <- ReadDatatable('gp_mapping', where = paste("country = '", sel_country, "'", sep = ''))#data.table(Country = '', Asfis = '', from = '', to = '', start = '', end = '', ratio = '') 
+  # gp_map <- ReadDatatable('gp_mapping', where = paste("country = '", sel_country, "'", sep = ''))#data.table(Country = '', Asfis = '', from = '', to = '', start = '', end = '', ratio = '') 
+  # 
+  # if(nrow(gp_map) == 0 ){
+  #   
+  #   gp_map <-  data.table(country = sel_country, asfis = '',
+  #                          from_code = '', to_code = '', 
+  #                          start_year = input$btn_year, end_year = 'LAST', ratio = '1') 
+  # }
   
-  if(nrow(gp_map) == 0 ){
-    
-    gp_map <-  data.table(country = sel_country, asfis = '',
-                           from_code = '', to_code = '', 
-                           start_year = input$btn_year, end_year = 'LAST', ratio = '1') 
-  }
+  validate(need(nrow(globalProductionMapping) >0,
+                'No GP data to show.'))
   
-  return(list(GP = globalProductionMapping, 
-              newMap = gp_map))
+  return(list(GP = globalProductionMapping))
   
 })
-
 
 output$gp_tab5 <-  DT::renderDataTable( server = FALSE, {
   
   gp_tab <- copy(gpTab_reac()$GP)
+  
+  validate(need(nrow(gp_tab) >0,
+           'No GP data to show.'))
   
   setnames(gp_tab, c("geographicAreaM49_fi", "fisheriesAsfis",
                          "timePointYears",
@@ -107,13 +111,34 @@ output$gp_tab5 <-  DT::renderDataTable( server = FALSE, {
 })
 
 
+gpMap_reac <- reactive({
+  
+  req(input$btn_country)
+
+  sel_country <- country_input[country_input$label == input$btn_country, code]
+  
+  gp_map <- ReadDatatable('gp_mapping', where = paste("country = '", sel_country, "'", sep = ''))#data.table(Country = '', Asfis = '', from = '', to = '', start = '', end = '', ratio = '') 
+  
+  updated_mappings$GP <- gp_map
+  
+  if(nrow(gp_map) == 0 ){
+    
+    gp_map <-  data.table(country = sel_country, asfis = '',
+                          from_code = '', to_code = '', 
+                          start_year = input$btn_year, end_year = 'LAST', ratio = '1') 
+  }
+  
+  return(list(newMap = gp_map))
+
+})
+
+
 output$gp_map_tab5 <-  renderRHandsontable({
   
-  gp_map <- gpTab_reac()$newMap
+  gp_map <- gpMap_reac()$newMap
   rhandsontable(gp_map, rowHeaders = NULL, width = 'auto', height = 'auto')
   
 })
-
 
 observeEvent(input$saveGP, {
 
@@ -142,11 +167,3 @@ observeEvent(input$saveGP, {
   ))
 })
 
-
-# observeEvent(input$saveGP, {
-#   
-#   new_map <- rhandsontable::hot_to_r(input$gp_map_tab5)
-#   # save in SWS
-#   # Create datatable
-#   
-# })

@@ -1,6 +1,6 @@
 # Create datatable
 SUAimbalanceTab_reac <- reactive({
-  
+
   req(input$btn_country, input$btn_year, input$btn_start_year)
 
   sel_country <- country_input[country_input$label == input$btn_country, code]
@@ -19,11 +19,17 @@ SUAimbalanceTab_reac <- reactive({
                            keytoken = tokenSuaB)
   
   if(!is.null(SUAbal)){
+    ValueElements <- c('5922', '5930', '5622', '5630')
+    SUAbalval <- copy(SUAbal)
+    SUAbalval <- SUAbalval[measuredElementSuaFbs %in% ValueElements]
+    SUAbal <- SUAbal[!measuredElementSuaFbs %in% ValueElements]
+    live_data$SUAbVal <- SUAbalval
     live_data$SUAb <- SUAbal
   } else {
+    SUAbalval <- live_data$SUAbVal
     SUAbal <- live_data$SUAb
   }
-
+  
   SUAbal <- live_data$SUAb[measuredElementSuaFbs == '5510']
   SUArou <- SUAbal[measuredElementSuaFbs == '5166']
   
@@ -34,11 +40,12 @@ SUAimbalanceTab_reac <- reactive({
                               keydomain = domainComm, 
                               keydataset = datasetSUAUlive,
                               keytoken = tokenSuaU)
-  
+
   if(!is.null(SUAunbalTot)){
-    live_data$SUAu <- SUAunbalTot
+    ValueElements <- c('5922', '5930', '5622', '5630')
+    SUAunbalTot <- SUAunbalTot[!measuredElementSuaFbs %in% ValueElements]
+    live_data$SUAu <- SUAunbalTot[!measuredElementSuaFbs %in% ValueElements]
   } else {
-    
     SUAunbalTot <- live_data$SUAu
   }
   
@@ -52,7 +59,6 @@ SUAimbalanceTab_reac <- reactive({
   return(list(imb = imbalance_tab_country, prod = prodCompare, rou = SUArou))
   
 })
-
 
 output$sua_imb_tab2 <- DT::renderDataTable( server = FALSE, {
   
@@ -75,8 +81,6 @@ output$sua_imb_tab2 <- DT::renderDataTable( server = FALSE, {
 
 })
 
-
-
 output$gg_plot_tab2bis <- renderPlot({
   
   req(input$btn_country, input$btn_year, input$btn_start_year)
@@ -96,7 +100,6 @@ output$gg_plot_tab2bis <- renderPlot({
   
 }) 
 
-
 output$sua_prod_diff_tab2 <- DT::renderDataTable( server = FALSE, {
   
   req(input$btn_country, input$btn_year, input$btn_start_year)
@@ -113,5 +116,4 @@ output$sua_prod_diff_tab2 <- DT::renderDataTable( server = FALSE, {
                 rownames = FALSE, options = list(pageLength = 25,
                                                  dom = 'Bfrtip',
                                                  buttons = c('csv', 'excel', 'pdf')))
-  # Put in red primary!!!!!!!!!!!!
 })

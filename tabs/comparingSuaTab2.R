@@ -1,8 +1,5 @@
 # Second tab, comparing SUA versions tab
 
-# load and show SUA balanced data frozen and live
-
-
 SUAcomparingTab_reac <- reactive({
   
   req(input$btn_country, input$btn_year, input$btn_start_year, input$btn_group_fbs, input$btn_element_sua)
@@ -10,7 +7,7 @@ SUAcomparingTab_reac <- reactive({
   sel_country <- country_input[country_input$label == input$btn_country, code]
   sel_years <- as.character(as.numeric(input$btn_start_year):as.numeric(input$btn_year))
   
-  if(length(input$btn_group_fbs) == 1 & input$btn_group_fbs == 'All'){
+  if(any(input$btn_group_fbs == 'All')){
     sel_group_fbs <- as.character(groups_input$code)
   } else {
   sel_group_fbs <- as.character(groups_input[label %in% input$btn_group_fbs]$code)
@@ -63,9 +60,20 @@ SUAcomparingTab_reac <- reactive({
   #                incProgress(0.95)
   #              })
   
-  SUAbal <- live_data$SUAb[measuredElementSuaFbs %in% sel_element_sua & measuredItemFaostat_L2 %in% ics2select]
-  SUAfrozen <- frozen_data$SUA[measuredElementSuaFbs %in% sel_element_sua & measuredItemFaostat_L2 %in% ics2select]
+  validate(
+    need(nrow(frozen_data$SUA) > 0, "No frozen SUA data for this country. Please select another country.")
+  )
   
+  validate(
+    need(nrow(live_data$SUAb) > 0, "No SUA data for this country. Please select another country.")
+  )
+  
+  SUAbal <- live_data$SUAb[measuredElementSuaFbs %in% sel_element_sua & measuredItemFaostat_L2 %in% ics2select]
+  
+  SUAbal <- rbind(SUAbal, live_data$SUAbVal[measuredElementSuaFbs %in% sel_element_sua & measuredItemFaostat_L2 %in% ics2select])
+  
+  SUAfrozen <- frozen_data$SUA[measuredElementSuaFbs %in% sel_element_sua & measuredItemFaostat_L2 %in% ics2select]
+
   # Now only showing value present both in frozen and live, CHANGE?
   SUAfrozenVSlive <- merge(SUAfrozen, SUAbal, 
                         by = c('geographicAreaM49_fi', 'measuredItemFaostat_L2', 
@@ -75,7 +83,7 @@ SUAcomparingTab_reac <- reactive({
   SUAfrozenVSlive[is.na(ValueFrozen), ValueFrozen := 0]
   SUAfrozenVSlive[is.na(ValueLive), ValueLive := 0]
   
-  SUAfrozenVSlive[measuredElementSuaFbs == '5423', ValueLive := ValueLive * 10000]
+  SUAfrozenVSlive[measuredElementSuaFbs == '5423', ValueLive := ValueLive]
   frozen2show <- SUAfrozenVSlive[measuredElementSuaFbs %in% sel_element_sua]
   
   frozen2show <- merge(frozen2show, l2l1[ , .(code_l1, code_l2)], 

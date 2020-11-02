@@ -50,14 +50,17 @@ overviewTab_reac <- reactive({
   #                incProgress(0.95)
   #              })
   
+  validate(
+    need(nrow(frozen_data$FBS) > 0, "No frozen FBS data for this country. Please select another country.")
+  )
+  
+  validate(
+    need(nrow(live_data$FBS) > 0, "No FBS data for this country. Please select another country.")
+  )
+  
   FBSfias <- live_data$FBS[measuredElementSuaFbs == sel_elements_fbs  ]
   
   FBSfrozen <- frozen_data$FBS
-  
-  validate(
-    need(nrow(FBSfrozen) > 0, "No data for this country. Please select another country.")
-  )
-  
   
   FBSfrozen <- FBSfrozen[measuredElementSuaFbs == sel_elements_fbs]
   # Now only showing value present both in frozen and live, CHANGE?

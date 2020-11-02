@@ -72,8 +72,8 @@ inputComputation <- function(data, primary, use){ #, treeNewER){
                   suff = c('', 'Official'))
   
   comp31[!is.na(ValueOfficial), c('Value','flagObservationStatus','flagMethod'):= list(ValueOfficial, 
-                                                                                       flagObservationStatusOfficial,
-                                                                                       flagMethodOfficial) ]
+                                                                                      '',  # flagObservationStatusOfficial,
+                                                                                       'p')] #flagMethodOfficial) ]
   
   comp31 <- comp31[ , c('ValueOfficial', 'flagObservationStatusOfficial',
                         'flagMethodOfficial') := NULL]
@@ -85,6 +85,14 @@ inputComputation <- function(data, primary, use){ #, treeNewER){
   # existing data are included as computed with computed extraction rates
   # other input data are computed starting from given extraction rates
   dataNo31 <- data[measuredElementSuaFbs!="5302"]
-  SUAinput <- rbind(dataNo31, comp31[,.(geographicAreaM49_fi, timePointYears,  measuredItemFaostat_L2, availability, measuredElementSuaFbs, Value, flagObservationStatus, flagMethod)]) #rbind(data, data_compute31) #
+
+  SUAinput <- rbind(dataNo31, comp31[,.(geographicAreaM49_fi, 
+                                        timePointYears, 
+                                        measuredItemFaostat_L2, 
+                                        availability, 
+                                        measuredElementSuaFbs, 
+                                        Value, 
+                                        flagObservationStatus, 
+                                        flagMethod)]) #rbind(data, data_compute31) #
   return(SUAinput)
 }

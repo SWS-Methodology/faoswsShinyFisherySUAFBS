@@ -9,7 +9,7 @@ SUAicsTab_reac <- reactive({
   # sel_group_fbs <- as.character(groups_input[label %in% input$btn_group_fbs_tab3]$code)
   sel_ics_prod <- as.character(groups_input[label %in% input$btn_ics_prod_tab3]$code )
   # sel_element_sua <- as.character(element_input[ label %in% input$btn_element_fbs]$code )
-  
+
   SUAbalIcs <- reloadDataToken(data = live_data$SUAb, 
                            keycountry = sel_country, 
                            minyear = input$btn_start_year, 
@@ -19,11 +19,18 @@ SUAicsTab_reac <- reactive({
                            keytoken = tokenSuaB)
   
   if(!is.null(SUAbalIcs)){
+    ValueElements <- c('5922', '5930', '5622', '5630')
+    SUAbalIcsval <- copy(SUAbalIcs)
+    SUAbalIcsval <- SUAbalIcsval[!measuredElementSuaFbs %in% ValueElements]
+    SUAbalIcs <- SUAbalIcs[!measuredElementSuaFbs %in% ValueElements]
     live_data$SUAb <- SUAbalIcs
+    live_data$SUAbVal <- SUAbalIcsval
   } else {
     SUAbalIcs <- live_data$SUAb
+    SUAbalIcsval <- live_data$SUAbVal
   }
 
+   SUAbalIcs <- rbind(SUAbalIcs, SUAbalIcsval)
    SUAbalIcs <- SUAbalIcs[measuredItemFaostat_L2 %in% sel_ics_prod]
 
   tab2show <- merge(SUAbalIcs, l2l1[ , .(code_l1, code_l2)], 
@@ -32,7 +39,6 @@ SUAicsTab_reac <- reactive({
   return(tab2show)
   
 })
-
 
 output$sua_ics_tab3 <- DT::renderDataTable( server = FALSE, {
   
@@ -49,7 +55,6 @@ output$sua_ics_tab3 <- DT::renderDataTable( server = FALSE, {
                                                  dom = 'Bfrtip',
                                                  buttons = c('csv', 'excel', 'pdf')))
 })
-
 
 output$gg_plot_tab3 <- renderPlot({
   req(input$btn_group_fbs_tab3, input$btn_ics_prod_tab3, input$btn_element_fbs,

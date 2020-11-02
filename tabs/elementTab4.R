@@ -9,7 +9,8 @@ SUAelemTab_reac <- reactive({
   sel_years <- as.character(as.numeric(input$btn_start_year):as.numeric(input$btn_year))
   sel_group_fbs <- as.character(groups_input[label == input$btn_group_fbs_tab4]$code)
   sel_ics_prod <- as.character(groups_input[label == input$btn_ics_prod_tab4]$code)
-  sel_element_sua <- as.character(element_input[ label %in% input$btn_element_sua_tab4]$code)
+  sel_element_sua <- as.character(sua_element_input[ label %in% input$btn_element_sua_tab4]$code)
+
   if(length(sel_element_sua) > 0){  
     
   if(nrow(live_data$SUAb) == 0){
@@ -24,8 +25,8 @@ SUAelemTab_reac <- reactive({
       }
     } else {
       R_SWS_SHARE_PATH = "Z:"
-      SetClientFiles("/srv/shiny-server/shinyFi_SUAFBS")
-      GetTestEnvironment(baseUrl = "https://hqlqasws1.hq.un.fao.org:8181/sws",
+      SetClientFiles("/srv/shiny-server/.R/QA/")
+      GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
                          token = tokenSuaB)
     }
   
@@ -53,15 +54,22 @@ SUAelemTab_reac <- reactive({
                  Sys.sleep(0.75)
                  incProgress(0.95)
                })
+  ValueElements <- c('5922', '5930', '5622', '5630')
+  SUAbalElemVal <- copy(SUAbalElem)
+  SUAbalElem <- SUAbalElem[!measuredElementSuaFbs %in% ValueElements]
   
-  live_data$SUAb <- SUAbalElem
+  live_data$SUAb <- SUAbalElem[!measuredElementSuaFbs %in% ValueElements]
+  live_data$SUAbVal <- SUAbalElemVal[measuredElementSuaFbs %in% ValueElements]
+  
   SUAbalElem <- SUAbalElem[measuredElementSuaFbs %in% sel_element_sua & measuredItemFaostat_L2 %in% sel_ics_prod]
   
+  SUAbalElem <- rbind(SUAbalElem, SUAbalElemVal[measuredElementSuaFbs %in% sel_element_sua & measuredItemFaostat_L2 %in% sel_ics_prod])
     
   } else {
  
     SUAbalElem <- live_data$SUAb[measuredElementSuaFbs %in% sel_element_sua & measuredItemFaostat_L2 %in% sel_ics_prod]
-
+    SUAbalElemVal <- live_data$SUAbVal[measuredElementSuaFbs %in% sel_element_sua & measuredItemFaostat_L2 %in% sel_ics_prod]
+    SUAbalElem <- rbind(SUAbalElem, SUAbalElemVal)
   }
   
   tab2show <- merge(SUAbalElem, l2l1[ , .(code_l1, code_l2)], 
@@ -71,7 +79,6 @@ SUAelemTab_reac <- reactive({
 }
   
 })
-
 
 output$sua_elem_tab4 <- DT::renderDataTable( server = FALSE, {
   
@@ -88,7 +95,6 @@ output$sua_elem_tab4 <- DT::renderDataTable( server = FALSE, {
                                                  dom = 'Bfrtip',
                                                  buttons = c('csv', 'excel', 'pdf')))
 })
-
 
 output$gg_plot_tab4 <- renderPlot({
   req(input$btn_group_fbs_tab4, input$btn_ics_prod_tab4,

@@ -1,4 +1,4 @@
-# Seventh tab, data validation
+# Data validation tab
 recalc_value <- reactiveValues(SUAinit = data.table(),
                                SUAmodtab = data.table(),
                                SUAupload = data.table())
@@ -18,10 +18,10 @@ suaTab_reac <- reactive({
   sel_group_fbs <- as.character(groups_input[label %in% input$btn_group_fbs_tab7]$code)
   sel_ics <- input$btn_ics_prod_tab7
   
-  
   if('All' %in% sel_ics){
     sel_ics_prod <- as.character(l2l1[code_l1 %in% sel_group_fbs ]$code_l2)
-  } else {
+  
+    } else {
     sel_ics_prod <- as.character(groups_input[label %in% sel_ics]$code)
   }
   
@@ -37,10 +37,33 @@ suaTab_reac <- reactive({
                             keydomain = domainComm, 
                             keydataset = datasetSUABlive,
                             keytoken = tokenSuaB)
+    
     if(!is.null(SUA0)){
+      ValueElements <- c('5922', '5930', '5622', '5630')
+      liveBval <- copy(SUA0)
+      liveBval <- liveBval[measuredElementSuaFbs %in% ValueElements]
+      live_data$SUAbVal <- liveBval
+    #  SUA0 <- SUA0[!measuredElementSuaFbs %in% ValueElements]
       live_data$SUAb <- SUA0
       recalc_value$SUAinit <- SUA0
+    
+      
+      if(nrow(live_data$SUAb) == 0){ 
+        showModal(modalDialog(
+          title = "No SUA data for this country. ",
+          sprintf('Please select another country.')
+        ))
+        
+      }
+      
     } else {
+      if(nrow(live_data$SUAb) == 0){ 
+        showModal(modalDialog(
+          title = "No SUA data for this country. ",
+          sprintf('Please select another country.')
+        ))
+        
+      }
       SUA0 <- live_data$SUAb
       recalc_value$SUAinit <- live_data$SUAb
     }
@@ -48,25 +71,97 @@ suaTab_reac <- reactive({
     SUA <- SUA0[measuredItemFaostat_L2 %in% sel_ics_prod & measuredElementSuaFbs %in% sel_element_sua , ]
     
     
-  } else {
-    
+  
+    } else {
+    if(unique(recalc_value$SUAmodtab$geographicAreaM49) == sel_country){
+
     SUA0 <- recalc_value$SUAmodtab
     SUA <- SUA0[geographicAreaM49_fi == sel_country &
                   measuredElementSuaFbs %in% sel_element_sua &
                   measuredItemFaostat_L2 %in% sel_ics_prod &
                   timePointYears %in% sel_years, ]
+    } else{
+      
+      SUA0 <- reloadDataToken(data = live_data$SUAb, 
+                              keycountry = sel_country, 
+                              minyear = input$btn_start_year, 
+                              maxyear = input$btn_year,
+                              keydomain = domainComm, 
+                              keydataset = datasetSUABlive,
+                              keytoken = tokenSuaB)
+      
+      if(!is.null(SUA0)){
+        ValueElements <- c('5922', '5930', '5622', '5630')
+        liveBval <- copy(SUA0)
+        liveBval <- liveBval[measuredElementSuaFbs %in% ValueElements]
+        live_data$SUAbVal <- liveBval
+        # SUA0 <- SUA0[!measuredElementSuaFbs %in% ValueElements]
+        live_data$SUAb <- SUA0
+        recalc_value$SUAinit <- SUA0
+        
+        
+        if(nrow(live_data$SUAb) == 0){ 
+          showModal(modalDialog(
+            title = "No SUA data for this country. ",
+            sprintf('Please select another country.')
+          ))
+          
+        }
+        
+      } else {
+        if(nrow(live_data$SUAb) == 0){ 
+          showModal(modalDialog(
+            title = "No SUA data for this country. ",
+            sprintf('Please select another country.')
+          ))
+          
+        }
+        SUA0 <- live_data$SUAb
+        recalc_value$SUAinit <- live_data$SUAb
+      }
+      
+      SUA <- SUA0[measuredItemFaostat_L2 %in% sel_ics_prod & measuredElementSuaFbs %in% sel_element_sua , ]
+    }
     
   }
   
   tab2show <- merge(SUA, l2l1[ , .(code_l1, code_l2)], 
                     by.x = 'measuredItemFaostat_L2', by.y = 'code_l2')
-  
+ # browser()
   if(nrow(new_extr_rate$eR) > 0){
-    updER <- new_extr_rate$eR[measuredItemFaostat_L2 %in% sel_ics_prod & timePointYears %in% sel_years]
+    updER <- new_extr_rate$eR
+
+    for(i in 1:nrow(updER)){
+     updER[i , code_l1 := l2l1[code_l2 == updER[i,]$measuredItemFaostat_L2]$code_l1 ]
+    }
+
+    if(nrow(tab2show[measuredElementSuaFbs == '5423',]) > 0){ # == nrow(updER)){
     
-    tab2show[measuredElementSuaFbs == '5423', c("Value", 
-                                                "flagMethod"):= list(updER$Value, updER$flagMethod)]
-  }
+      Er <- merge(tab2show[measuredElementSuaFbs == '5423',], updER,
+                  by = c('geographicAreaM49_fi', 'measuredItemFaostat_L2', 
+                           'measuredElementSuaFbs', 'timePointYears', 
+                           'code_l1'), all = T, suffixes = c('', 'Upd'))
+      
+      Er[is.na(Value), Value := ValueUpd ]
+      Er[!is.na(ValueUpd) & !is.na(Value) & Value != ValueUpd, Value := ValueUpd ]
+      Er[, c("ValueUpd", 
+             "flagObservationStatusUpd",
+             "flagMethodUpd") := NULL]
+      
+      tab2show <- rbind(tab2show[measuredElementSuaFbs != '5423',], Er[measuredItemFaostat_L2 %in% sel_ics_prod & timePointYears %in% sel_years])
+      
+      
+    # tab2show[measuredElementSuaFbs == '5423', c("Value", 
+    #                                             "flagMethod"):= list(updER$Value, updER$flagMethod)]
+    } else {
+      
+      tab2show <- rbind(tab2show[measuredElementSuaFbs != '5423',], updER[measuredItemFaostat_L2 %in% sel_ics_prod & timePointYears %in% sel_years])
+      
+      # rbind(tab2show, updER[measuredItemFaostat_L2 %in% sel_ics_prod & timePointYears %in% sel_years])
+      
+    }
+      
+      }
   
   
   setnames(tab2show, c('geographicAreaM49_fi', 'measuredItemFaostat_L2', 
@@ -86,7 +181,7 @@ suaTab_reac <- reactive({
     nrow(tab2show) > 0,
     'No data to show for this product.'
   ))
-  
+ 
   sua_tab_out <- dcast(tab2show, Country + FBSgroup + ICSprod + idx + Element ~ Year, value.var = c("Value", "F"))
   
   
@@ -107,19 +202,19 @@ suaTab_reac <- reactive({
 output$sua_tab7 <-  renderRHandsontable({
   req(input$btn_group_fbs_tab7, input$btn_ics_prod_tab7, input$btn_sua_elem_tab7,
       input$btn_country, input$btn_year, input$btn_start_year)
-  
+  sel_country <- country_input[country_input$label == input$btn_country, code]
   sua_tab_out <- suaTab_reac()$sua2show
   
   validate(need(
     nrow(sua_tab_out) > 0,
     'No data to show for this product.'
   ))
-  
+ 
   
   col2hide <-  seq(6, ncol(sua_tab_out), by = 2)
   colvalue <- seq(5, ncol(sua_tab_out) - 1, by = 2)
   
-  rhandsontable(sua_tab_out, rowHeaders = NULL, width = 'auto', height = 'auto') %>%
+  rhandsontable(sua_tab_out, rowHeaders = NULL, width = 'auto', height = 'auto', digits = 6) %>%
     hot_cols(fixedColumnsLeft = 4)  # number of columns to freeze = 4
   
   #  , renderer = "
@@ -137,14 +232,14 @@ output$sua_tab7 <-  renderRHandsontable({
 # -- Availability table ---- 
 output$textAv <- renderText({
   req(input$btn_group_fbs_tab7,
-      input$btn_ics_prod_tab7) # input$btn_country, input$btn_year, input$btn_start_year,
+      input$btn_ics_prod_tab7, input$btn_country, input$btn_year, input$btn_start_year)
   
   "Availability table:"
 })
 
 output$availability <- renderRHandsontable({
-  #req(input$btn_group_fbs_tab7, input$btn_ics_prod_tab7, input$btn_sua_elem_tab7) #,
-  # input$btn_country, input$btn_year, input$btn_start_year)
+  req(input$btn_country, input$btn_year, input$btn_start_year,input$btn_group_fbs_tab7,
+      input$btn_ics_prod_tab7)
   if(is.null(input$sua_tab7)) return(NULL)
   
   tab_updated <- rhandsontable::hot_to_r(input$sua_tab7)
@@ -167,8 +262,9 @@ output$availability <- renderRHandsontable({
   sua_avail[ , c('Element', 'Value', 'sign') := NULL]
   setkey(sua_avail)
   avail2show <- unique(sua_avail)
+
   avail2show <- dcast(avail2show, Country + FBSgroup + ICSprod  ~ Year, value.var = c("availability"))
-  rhandsontable(avail2show, rowHeaders = NULL, width = 'auto', height = 'auto') # %>%
+  rhandsontable(avail2show, rowHeaders = NULL, width = 'auto', height = 'auto', digits = 6) # %>%
   #   hot_col('availability', renderer = 'green')
   
 })
@@ -178,7 +274,7 @@ output$availability <- renderRHandsontable({
 output$contents <- renderTable({
   
   inFile <- input$updatedSUA
-  
+
   if (is.null(inFile))
     return(NULL)
   
@@ -198,7 +294,12 @@ output$contents <- renderTable({
       stop(safeError(e))
     }
   )
+  
+  validate(need(nrow(df) > 1, 
+                'Empty file uploaded.'))
+  
   recalc_value$SUAupload <- df
+  
   return(df)
   
 })
@@ -217,8 +318,6 @@ output$downloadData <- downloadHandler(
 
 # -- FP Feedback ----
 
-feedback <- reactiveValues(FP = readRDS('FoodProcessingFeedback.rds'))
-
 # output$FPtxt1 <- renderText({ 
 #   req(input$btn_group_fbs_tab7, input$btn_ics_prod_tab7, input$btn_sua_elem_tab7)
 #   msg1 <- feedback$FP[[1]]$msg
@@ -227,15 +326,20 @@ feedback <- reactiveValues(FP = readRDS('FoodProcessingFeedback.rds'))
 # 
 #   })
 
+feedback <- reactiveValues(FP = list())
+
 output$FPtab1 <- DT::renderDataTable( server = FALSE, {
-  req(input$btn_group_fbs_tab7, input$btn_ics_prod_tab7, input$btn_sua_elem_tab7) #,
-  # input$btn_country, input$btn_year, input$btn_start_year)
+  req(input$btn_group_fbs_tab7, input$btn_ics_prod_tab7, input$btn_sua_elem_tab7,
+   input$btn_country, input$btn_year, input$btn_start_year)
+
+  # feedback$FP <- FPfile
   
-  tab1 <- feedback$FP$primary$tab
+  tab1 <- FPfile$primary # feedback$FP$primary$tab
   sel_country <- country_input[country_input$label == input$btn_country, code]
-  if(!is.null(tab1) |nrow(tab1) > 0){
-    tab1$Value <- round(tab1$Value,3)
-    DT::datatable(tab1[geographicAreaM49_fi == sel_country], extensions = 'Buttons', filter = 'top',
+
+  if(nrow(tab1) > 0){
+    tab1$value <- round(tab1$value,3)
+    DT::datatable(tab1[geographicaream49_fi == sel_country], extensions = 'Buttons', filter = 'top',
                   rownames = FALSE, options = list(pageLength = 25,
                                                    dom = 'Bfrtip',
                                                    buttons = c('csv', 'excel', 'pdf')))
@@ -250,93 +354,119 @@ output$FPtab1 <- DT::renderDataTable( server = FALSE, {
   
 })
 
-# output$FPtxt2 <- renderText({ 
-#   req(input$btn_group_fbs_tab7, input$btn_ics_prod_tab7, input$btn_sua_elem_tab7)
-#   msg2 <- feedback$FP[[2]]$msg
-#   paste("Total secondary availability problems:", 
-#         msg2, sep = "/n")
-#   
-# })
+output$FPinsuff <- DT::renderDataTable( server = FALSE, {
+  req(input$btn_group_fbs_tab7, input$btn_ics_prod_tab7, input$btn_sua_elem_tab7,
+      input$btn_country, input$btn_year, input$btn_start_year)
+  
+  #feedback$FP <- FPfile
+
+  tab1 <- FPfile$secondaryTot # feedback$FP$
+  tab1$availablequantity <- round(tab1$availablequantity,3)
+  tab1$quantity2cover <- round(tab1$quantity2cover,3)
+  
+  sel_country <- country_input[country_input$label == input$btn_country, code]
+  
+  # if(is.null(tab1)){
+  # 
+  #   DT::datatable(data.table(), extensions = 'Buttons', filter = 'top',
+  #                 rownames = FALSE, options = list(pageLength = 25,
+  #                                                  dom = 'Bfrtip',
+  #                                                  buttons = c('csv', 'excel', 'pdf')))
+  #   
+  # } else if(!is.null(tab1) & nrow(tab1) > 0){
+  
+ if(nrow(tab1) > 0){
+    DT::datatable(tab1[geographicaream49_fi == sel_country], extensions = 'Buttons', filter = 'top',
+                  rownames = FALSE, options = list(pageLength = 25,
+                                                   dom = 'Bfrtip',
+                                                   buttons = c('csv', 'excel', 'pdf')))
+  } else {
+    
+     DT::datatable(data.table(), extensions = 'Buttons', filter = 'top',
+                   rownames = FALSE, options = list(pageLength = 25,
+                                                    dom = 'Bfrtip',
+                                                    buttons = c('csv', 'excel', 'pdf')))
+   }
+  
+})
 
 output$FPsecPar <- DT::renderDataTable( server = FALSE, {
-  req(input$btn_group_fbs_tab7, input$btn_ics_prod_tab7, input$btn_sua_elem_tab7) #,
-  #input$btn_country, input$btn_year, input$btn_start_year)
+  req(input$btn_group_fbs_tab7, input$btn_ics_prod_tab7, input$btn_sua_elem_tab7,
+   input$btn_country, input$btn_year, input$btn_start_year)
   sel_country <- country_input[country_input$label == input$btn_country, code]
   
-  tab2 <- feedback$FP$secondary$tab
-  tab3 <- feedback$FP$tertiary$tab
-  tab4 <- feedback$FP$quaternary$tab
+  tab2 <- FPfile$secondary # feedback$FP$secondary$tab
+  tab3 <- FPfile$tertiary # feedback$FP$tertiary$tab
+  tab4 <- FPfile$quaternary # feedback$FP$quaternary$tab
   
-  if(!is.null(tab4) & !is.null(tab3) & !is.null(tab2)){
+  # if(!is.null(tab4) & !is.null(tab3) & !is.null(tab2)){
     
-    tab <- rbind(tab2, tab3)
-    tab <- rbind(tab, tab4)
-    
-    DT::datatable(tab[geographicAreaM49_fi == sel_country], extensions = 'Buttons', filter = 'top',
+    tab <- rbind(tab2, tab3, tab4)
+    tab$quantity2cover <- round(tab$quantity2cover, 3)
+    # tab <- rbind(tab, tab4)
+  if(nrow(tab) > 0){
+    DT::datatable(tab[geographicaream49_fi == sel_country], extensions = 'Buttons', filter = 'top',
                   rownames = FALSE, options = list(pageLength = 25,
                                                    dom = 'Bfrtip',
                                                    buttons = c('csv', 'excel', 'pdf')))
     
-  } else if(is.null(tab4) & !is.null(tab3) & !is.null(tab2)) {
-    
-    tab <- rbind(tab2, tab3)
-    
-    DT::datatable(tab[geographicAreaM49_fi == sel_country], extensions = 'Buttons', filter = 'top',
-                  rownames = FALSE, options = list(pageLength = 25,
-                                                   dom = 'Bfrtip',
-                                                   buttons = c('csv', 'excel', 'pdf')))
-  } else if(is.null(tab4) & is.null(tab3) & !is.null(tab2)) {
-    
-    tab <- tab2
-    
-    DT::datatable(tab[geographicAreaM49_fi == sel_country], extensions = 'Buttons', filter = 'top',
-                  rownames = FALSE, options = list(pageLength = 25,
-                                                   dom = 'Bfrtip',
-                                                   buttons = c('csv', 'excel', 'pdf')))
-    
-  } else {
-    
-    DT::datatable(data.table(), extensions = 'Buttons', filter = 'top',
-                  rownames = FALSE, options = list(pageLength = 25,
-                                                   dom = 'Bfrtip',
-                                                   buttons = c('csv', 'excel', 'pdf')))
-  }
+  # } else if(is.null(tab4) & !is.null(tab3) & !is.null(tab2)) {
+  #   
+  #   tab <- rbind(tab2, tab3)
+  #   
+  #   DT::datatable(tab[geographicaream49_fi == sel_country], extensions = 'Buttons', filter = 'top',
+  #                 rownames = FALSE, options = list(pageLength = 25,
+  #                                                  dom = 'Bfrtip',
+  #                                                  buttons = c('csv', 'excel', 'pdf')))
+  # } else if(is.null(tab4) & is.null(tab3) & !is.null(tab2)) {
+  #   
+  #   tab <- tab2
+  #   
+  #   DT::datatable(tab[geographicaream49_fi == sel_country], extensions = 'Buttons', filter = 'top',
+  #                 rownames = FALSE, options = list(pageLength = 25,
+  #                                                  dom = 'Bfrtip',
+  #                                                  buttons = c('csv', 'excel', 'pdf')))
+  #   
+   } else {
+     
+     DT::datatable(data.table(), extensions = 'Buttons', filter = 'top',
+                   rownames = FALSE, options = list(pageLength = 25,
+                                                    dom = 'Bfrtip',
+                                                    buttons = c('csv', 'excel', 'pdf')))
+   }
 })
 
-# output$FPtxt35 <- renderText({ 
-#   req(input$btn_group_fbs_tab7, input$btn_ics_prod_tab7, input$btn_sua_elem_tab7)
-#   msg3 <- feedback$FP[[3]]$msg
-#   msg4 <- feedback$FP[[4]]$msg
-#   msg5 <- feedback$FP[[5]]$msg
-#   paste(c(msg3, msg4, msg5))
-#   
-# })
-
 output$FPtabUncov <- DT::renderDataTable( server = FALSE, {
-  req(input$btn_group_fbs_tab7, input$btn_ics_prod_tab7, input$btn_sua_elem_tab7) #,
-  #   input$btn_country, input$btn_year, input$btn_start_year)
+  req(input$btn_group_fbs_tab7, input$btn_ics_prod_tab7, input$btn_sua_elem_tab7,
+     input$btn_country, input$btn_year, input$btn_start_year)
   sel_country <- country_input[country_input$label == input$btn_country, code]
-  
-  tabUncov <- feedback$FP$NotCovered
-  
+
+  tabUncov <- FPfile$NotCovered
+
+  # if(is.null(tabUncov)){
+  #   
+  #   DT::datatable(data.table(), extensions = 'Buttons', filter = 'top',
+  #                 rownames = FALSE, options = list(pageLength = 25,
+  #                                                  dom = 'Bfrtip',
+  #                                                  buttons = c('csv', 'excel', 'pdf')))
+  # } else if(!is.null(tabUncov) | nrow(tabUncov) > 0){
   if(nrow(tabUncov) > 0){
-    DT::datatable(tabUncov[geographicAreaM49_fi == sel_country], extensions = 'Buttons', filter = 'top',
+    DT::datatable(tabUncov[geographicaream49_fi == sel_country], extensions = 'Buttons', filter = 'top',
                   rownames = FALSE, options = list(pageLength = 25,
                                                    dom = 'Bfrtip',
                                                    buttons = c('csv', 'excel', 'pdf')))
-  } else {
-    
-    DT::datatable(data.table(), extensions = 'Buttons', filter = 'top',
-                  rownames = FALSE, options = list(pageLength = 25,
-                                                   dom = 'Bfrtip',
-                                                   buttons = c('csv', 'excel', 'pdf')))
-    
-  }
+   } else {
+     
+     DT::datatable(data.table(), extensions = 'Buttons', filter = 'top',
+                   rownames = FALSE, options = list(pageLength = 25,
+                                                    dom = 'Bfrtip',
+                                                    buttons = c('csv', 'excel', 'pdf')))
+     
+   }
   
 })
 
 # -- Save & recalculate ----
-
 
 observeEvent(input$save, { # Opening Observe event
   
@@ -409,10 +539,10 @@ observeEvent(input$save, { # Opening Observe event
     
   } else if (input$reprocess == 'Complete')
   {  # Closing input$reprocess == 'No' & Opening input$reprocess == 'Complete'
-    
+  
     newMapGP <- updated_mappings$GP
     newMapCDB <-  updated_mappings$CDB
-    
+ 
     showModal(modalDialog(
       title = "Recalculating!" ,
       sprintf("Please wait for the calculations to be completed.")
@@ -428,12 +558,12 @@ observeEvent(input$save, { # Opening Observe event
                    map_asfis <- ReadDatatable('map_asfis')
                    setnames(map_asfis, c("asfis"), c("fisheriesAsfis"))
                    
-                   #-- Needed datasets ----
+                   #++ Needed datasets ----
                    sel_country <- country_input[country_input$label == input$btn_country, code]
                    sel_years <- as.character(as.numeric(input$btn_start_year):as.numeric(input$btn_year))
                    ## Get global production (from Production environment)
                    
-                   #-- Get whole Global production needed ----
+                   #++ Get whole Global production needed ----
                    
                    
                    if(nrow(InitialDatasets$GP) == 0)
@@ -472,6 +602,7 @@ observeEvent(input$save, { # Opening Observe event
                    # Aggregate by fisheriesCatchArea
                    # Convert flags into ordinal factor so that simple aggregation is possible
                    # The function aggregateObservationFlag is too slow so flag are transformed into factors
+                   globalProduction[geographicAreaM49_fi %in% c('830','833'), geographicAreaM49_fi := '826']
                    
                    globalProduction$flagObservationStatus <- factor(globalProduction$flagObservationStatus, 
                                                                     levels = c('M', 'O', 'N', '', 'X', 'T', 'E', 'I'), 
@@ -493,13 +624,13 @@ observeEvent(input$save, { # Opening Observe event
                    # Hard code change from FI_001 to 5510, both are Production in tonnes.
                    globalProduction$measuredElement <- ifelse(globalProduction$measuredElement == "FI_001", "5510", globalProduction$measuredElement)
                    
-                   #-- Start processing global production ----
+                   #++ Start processing global production ----
                    
                    newGP <- GPrecalc(GP = globalProduction, map_asfis = map_asfis, new_map_asfis = newMapGP, year = input$btn_year)
                    
                    Sys.sleep(0.1)
                    incProgress(0.3) 
-                   #-- Get Commodities data ----
+                   #++ Get Commodities data ----
                    
                    if(nrow(InitialDatasets$CDB) == 0)
                    {
@@ -527,8 +658,29 @@ observeEvent(input$save, { # Opening Observe event
                                     incProgress(0.95)
                                   })
                      
-                     InitialDatasets$CDB <- commodityDB
+                     commodityDB[geographicAreaM49_fi %in% c('830','833'), geographicAreaM49_fi := '826']
+                     commodityDB$flagObservationStatus <- factor(commodityDB$flagObservationStatus,
+                                                                 levels = c('M', 'O', 'N', '', 'X', 'T', 'E', 'I'), 
+                                                                 ordered = TRUE)
                      
+                     # Re-export in Export (quantity and values)
+                     commodityDB[measuredElement == '5912', measuredElement := '5910'] # quantity
+                     commodityDB[measuredElement == '5923', measuredElement := '5922'] # Value in 1000$
+                     commodityDB[measuredElement == '5931', measuredElement := '5930'] # Unit value $/t
+                     
+                     
+                     commodityDB <- commodityDB[!measuredElement %in% c('5907', '5937', 
+                                                                        '5607', '5637',
+                                                                        '5906', '5940')]
+                     
+                     # Isolate prices (not entering all the processing)
+                     commodityDBValue <- copy(commodityDB)
+                     commodityDBValue <- commodityDBValue[measuredElement %in% ValueElements]
+                    # commodityDB <- commodityDB[!measuredElement %in% ValueElements]
+                     
+                     InitialDatasets$CDB <- commodityDB
+                     InitialDatasets$CDBVal <- commodityDBValue
+                    
                    } else if(nrow(InitialDatasets$CDB) > 0 &
                              unique(InitialDatasets$CDB$geographicAreaM49_fi) != sel_country |
                              min(unique(InitialDatasets$CDB$timePointYears)) != input$btn_start_year |
@@ -557,37 +709,47 @@ observeEvent(input$save, { # Opening Observe event
                                     incProgress(0.95)
                                   })
                      
+                     commodityDB[geographicAreaM49_fi %in% c('830','833'), geographicAreaM49_fi := '826']
+                     commodityDB$flagObservationStatus <- factor(commodityDB$flagObservationStatus,
+                                                                 levels = c('M', 'O', 'N', '', 'X', 'T', 'E', 'I'), 
+                                                                 ordered = TRUE)
+                     
+                     # Re-export in Export (quantity and values)
+                     commodityDB[measuredElement == '5912', measuredElement := '5910'] # quantity
+                     commodityDB[measuredElement == '5923', measuredElement := '5922'] # Value in 1000$
+                     commodityDB[measuredElement == '5931', measuredElement := '5930'] # Unit value $/t
+                     
+                     
+                     commodityDB <- commodityDB[!measuredElement %in% c('5907', '5937', 
+                                                                          '5607', '5637',
+                                                                          '5906', '5940')]
+                     
+                     # Isolate prices (not entering all the processing)
+                     commodityDBValue <- copy(commodityDB)
+                     commodityDBValue <- commodityDBValue[measuredElement %in% ValueElements]
+                    # commodityDB <- commodityDB[!measuredElement %in% ValueElements]
+                     
                      InitialDatasets$CDB <- commodityDB
+                     InitialDatasets$CDBVal <- commodityDBValue
                      
                    } else 
                    {
                      commodityDB <- InitialDatasets$CDB
                    }
                    
-                   commodityDB$flagObservationStatus <- factor(commodityDB$flagObservationStatus,
-                                                               levels = c('M', 'O', 'N', '', 'X', 'T', 'E', 'I'), 
-                                                               ordered = TRUE)
+  
                    
-                   # No need of value elements "5622" and "5922"
-                   commodityDB <- commodityDB[!measuredElement %in% c("5622", "5922", "5930", 
-                                                                      "5937", "5923", "5931",
-                                                                      "5940", "5630", "5637")]
-                   
-                   # Re-export in Export
-                   commodityDB <- commodityDB[measuredElement %in% c("5912", "5907",
-                                                                     "5906"), measuredElement := '5910']
-                   
-                   # Other import
-                   commodityDB <- commodityDB[measuredElement == "5607", measuredElement := '5610']
-                   
-                   
-                   #-- Start processing commodity DB ----
-                   newCDB <- CDBrecalc(CDB = commodityDB, map_isscfc = map_isscfc, new_map_isscfc = newMapCDB, year = input$btn_year)
+                   #++ Start processing commodity DB ----
+                   newCDB <- CDBrecalc(CDB = commodityDB,
+                                       map_isscfc = map_isscfc,
+                                       new_map_isscfc = newMapCDB,
+                                       year = input$btn_year)
                    
                    Sys.sleep(0.1)
                    incProgress(0.45) 
-                   #-- SUA unbalanced ----
+                   #++ SUA unbalanced ----
                    
+            
                    SUAunbalResults <- SUAunbalCalc(globalProductionAggr = newGP, commodityDBAggr = newCDB)
                    
                    SUAunbal <- SUAunbalResults$SUAunbal
@@ -608,11 +770,12 @@ observeEvent(input$save, { # Opening Observe event
                      setnames(modifiedSUA, c('Country', 'ICSprod', 'Element'),
                               c('geographicAreaM49_fi', 'measuredItemFaostat_L2', 'measuredElementSuaFbs'))
                      
+                   #  modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% ValueElements]
                      
                    } else if(input$csv_online == 2)
                    {
                      
-                     #-- Pulling uploaded file ----
+                     #++ Pulling uploaded file ----
                      modifiedSUA0 <- recalc_value$SUAupload
                      
                      setnames(modifiedSUA0, names(modifiedSUA0)[c(1,3,4)], c('geographicAreaM49_fi',
@@ -637,18 +800,23 @@ observeEvent(input$save, { # Opening Observe event
                                          na.rm = TRUE)
                      
                      modifiedSUA <- as.data.table(modifiedSUA)
+                    
                      modifiedSUA$Value <- as.numeric(modifiedSUA$Value)
                      
                    }
                    
                    modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% elkeyNot2consider,]
+                  # modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% ValueElements,]
+                   modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% '5023',]
                    
                    # First compare what changed with respect to the original table
                    
                    if(nrow(recalc_value$SUAmodtab) == 0){
                      SUAinit <- recalc_value$SUAinit[!measuredElementSuaFbs %in% elkeyNot2consider,]
+                     SUAinit <- SUAinit[measuredElementSuaFbs != '5023']
                    } else {
                      SUAinit <- recalc_value$SUAmodtab[!measuredElementSuaFbs %in% elkeyNot2consider,]
+                     SUAinit <- SUAinit[measuredElementSuaFbs != '5023']
                    }
                    
                    SUAcomp <- merge(SUAinit, modifiedSUA, 
@@ -673,10 +841,14 @@ observeEvent(input$save, { # Opening Observe event
                                         by = c('geographicAreaM49_fi', 'measuredItemFaostat_L2', 
                                                'measuredElementSuaFbs', 'timePointYears'), 
                                         all = TRUE, suffixes = c('','Mod'))
-                   
-                   SUAunbalMod <- SUAunbalMod[][Value != ValueMod  | is.na(Value),
-                                                c('Value', 'flagObservationStatus', 'flagMethod') := list(ValueMod, flagObservationStatusMod,
+                
+                   SUAprimMod <- SUAunbalMod[ measuredElementSuaFbs %in% primaryEl]
+                  
+                   SUAsecMod <- SUAunbalMod[!measuredElementSuaFbs %in% primaryEl] 
+                   SUAsecMod <- SUAsecMod[Value != ValueMod  | is.na(Value),
+                                          c('Value', 'flagObservationStatus', 'flagMethod') := list(ValueMod, flagObservationStatusMod,
                                                                                                           flagMethodMod)]
+                   SUAunbalMod <- rbind(SUAprimMod, SUAsecMod)
                    
                    # SUAunbalMod[round(Value, 2) != round(ValueMod, 2),
                    #           c('Value', 'flagObservationStatus', 'flagMethod') := list(ValueMod, flagObservationStatusMod,
@@ -688,7 +860,7 @@ observeEvent(input$save, { # Opening Observe event
                    Sys.sleep(0.1)
                    incProgress(0.5)
                    
-                   #-- SUA balanced ----
+                   #++ SUA balanced ----
                    
                    eR <- SUAunbalMod[measuredElementSuaFbs == '5423']
                    
@@ -697,10 +869,15 @@ observeEvent(input$save, { # Opening Observe event
                    #        'Choose only to update Extraction rates or Input'
                    #        )
                    # )
-                   
+      
                    primary <- unique(map_asfis$ics)
+                   SUAunbalMod <- SUAunbalMod[measuredElementSuaFbs != '5166']
                    SUAbalResults <- SUAbalCalc(SUA = SUAunbalMod, eR = eR, use = input$radioErVSinput)
                    SUAbal <- SUAbalResults$SUA
+                   SUAbal[measuredElementSuaFbs %in% c('5630', '5930'),flagMethod := 'c']
+                   
+                   FPfile <<- SUAbalResults$FPproblems
+                   
                    newMessages <- SUAbalResults$msg
                    FPproblems <- SUAbalResults$FPproblems$NotCovered
                    SecNegAv <- SUAbalResults$NegAv
@@ -711,24 +888,28 @@ observeEvent(input$save, { # Opening Observe event
                    Sys.sleep(0.1) 
                    incProgress(0.65) 
                    
-                   SUAwithNutr <- SUAnutrCalc(SUAbalAvail = SUAbal, popSWS = popSWS)
-                   recalc_value$SUAmodtab <- SUAwithNutr
+                   SUAwithNutrList <- SUAnutrCalc(SUAbalAvail = SUAbal, popSWS = popSWS)
+                   
+                   recalc_value$SUAmodtab <- SUAwithNutrList$SUA2save
+                   SUAwithNutr <- SUAwithNutrList$SUA2save
+                   foodPercapita <- SUAwithNutrList$foodPercapita
                    Sys.sleep(0.1) 
                    incProgress(0.80)
                    
-                   #-- FBS ----
-                   FBS <- FBScalc(SUA2save = SUAwithNutr, popSWS = popSWS)
+                   #++ FBS ----
                    
+                   FBS <- FBScalc(SUA2save = rbind(SUAwithNutr, foodPercapita), popSWS = popSWS)
+                
                    faostatFBS <- FBS$faostat
                    fiasFBS <- FBS$fias
                    Sys.sleep(0.1) 
                    incProgress(0.95)
                  })
     
-    #-- New SUA ----
+    #++ New SUA ----
     updated_data$SUAunbal <- SUAunbal
     updated_data$SUAbal <- SUAwithNutr
-    updated_data$FBSaostat <- faostatFBS
+    updated_data$FBSfaostat <- faostatFBS
     updated_data$FBSfias <- fiasFBS
     
     showModal(modalDialog(
@@ -754,7 +935,6 @@ observeEvent(input$save, { # Opening Observe event
                    Sys.sleep(0.1)
                    incProgress(0.25)
                    
-                   
                    SUAunbal <- reloadDataToken(data = live_data$SUAu, 
                                                keycountry = sel_country, 
                                                minyear = input$btn_start_year, 
@@ -763,10 +943,12 @@ observeEvent(input$save, { # Opening Observe event
                                                keydataset = datasetSUAUlive,
                                                keytoken = tokenSuaU)
                    
+                   
                    if(!is.null(SUAunbal)){
+                     ValueElements <- c('5922', '5930', '5622', '5630')
+                  #   SUAunbal <- SUAunbal[!measuredElementSuaFbs %in% ValueElements]
                      live_data$SUAu <- SUAunbal
                    } else {
-                     
                      SUAunbal <- live_data$SUAu
                    }
                    
@@ -786,12 +968,13 @@ observeEvent(input$save, { # Opening Observe event
                      
                      setnames(modifiedSUA, c('Country', 'ICSprod', 'Element'),
                               c('geographicAreaM49_fi', 'measuredItemFaostat_L2', 'measuredElementSuaFbs'))
+                   #  modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% ValueElements]
                      
                      
                    } else if(input$csv_online == 2)
                    {
                      
-                     #-- Pulling uploaded file ----
+                     #++ Pulling uploaded file ----
                      modifiedSUA0 <- recalc_value$SUAupload
                      
                      setnames(modifiedSUA0, names(modifiedSUA0)[c(1,3,4)], c('geographicAreaM49_fi',
@@ -821,13 +1004,20 @@ observeEvent(input$save, { # Opening Observe event
                    }
                    
                    modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% elkeyNot2consider,]
-                   
+                #   modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% ValueElements,]
+                   modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% '5023',]
                    # First compare what changed with respect to the original table
+                   
+                  # if(nrow(recalc_value$SUAmodtab) > 0){
+                  #  browser()
+                  # }
                    
                    if(nrow(recalc_value$SUAmodtab) == 0){
                      SUAinit <- recalc_value$SUAinit[!measuredElementSuaFbs %in% elkeyNot2consider,]
+                     SUAinit <- SUAinit[measuredElementSuaFbs != '5023']
                    } else {
                      SUAinit <- recalc_value$SUAmodtab[!measuredElementSuaFbs %in% elkeyNot2consider,]
+                     SUAinit <- SUAinit[measuredElementSuaFbs != '5023']
                    }
                    
                    SUAcomp <- merge(SUAinit, modifiedSUA, 
@@ -836,11 +1026,13 @@ observeEvent(input$save, { # Opening Observe event
                                     suffixes = c('', 'Mod'),
                                     all = TRUE)
                    setDT(SUAcomp)
-                   SUAcomp <- SUAcomp[][!is.na(ValueMod) & Value != ValueMod | is.na(Value) , c('Value', 
-                                                                                                'flagObservationStatus', 
-                                                                                                'flagMethod') := list(ValueMod,
-                                                                                                                      'E',
-                                                                                                                      'f')]
+                   SUAcomp <- SUAcomp[][!is.na(ValueMod) & 
+                                          Value != ValueMod | is.na(Value) , 
+                                        c('Value', 
+                                          'flagObservationStatus', 
+                                          'flagMethod') := list(ValueMod,
+                                                                'E',
+                                                                'f')]
                    
                    SUAcomp <- SUAcomp[ , c('ValueMod') := NULL]
                    
@@ -862,12 +1054,11 @@ observeEvent(input$save, { # Opening Observe event
                    #                                                                     flagMethodMod)]
                    
                    SUAunbalMod[ , c('ValueMod', 'flagObservationStatusMod', 'flagMethodMod') := NULL]
-                   
-                   
+                
                    Sys.sleep(0.1)
                    incProgress(0.5)
                    
-                   #-- SUA balanced ----
+                   #++ SUA balanced ----
                    
                    eR <- SUAunbalMod[measuredElementSuaFbs == '5423']
                    
@@ -878,8 +1069,18 @@ observeEvent(input$save, { # Opening Observe event
                    # )
                    
                    primary <- unique(map_asfis$ics)
-                   SUAbalResults <- SUAbalCalc(SUA = SUAunbalMod, eR = eR, use = input$radioErVSinput)
+                   SUAunbalMod <- SUAunbalMod[measuredElementSuaFbs != '5166']
+                   
+                   if(any(names(SUAunbalMod) == 'sign')){
+                     SUAunbalMod <- SUAunbalMod[sign := NULL]
+                   }
+                   SUAbalResults <- SUAbalCalc(SUA = SUAunbalMod, 
+                                               eR = eR, use = input$radioErVSinput)
+                   
+                   FPfile <<- SUAbalResults$FPproblems
+                   
                    SUAbal <- SUAbalResults$SUA
+                   SUAbal[measuredElementSuaFbs %in% c('5630', '5930'),flagMethod := 'c']
                    newMessages <- SUAbalResults$msg
                    FPproblems <- SUAbalResults$FPproblems$NotCovered
                    SecNegAv <- SUAbalResults$NegAv
@@ -890,26 +1091,27 @@ observeEvent(input$save, { # Opening Observe event
                    Sys.sleep(0.1) 
                    incProgress(0.65) 
                    
-                   SUAwithNutr <- SUAnutrCalc(SUAbalAvail = SUAbal, popSWS = popSWS)
-                   recalc_value$SUAmodtab <- SUAwithNutr
-                   #################################################
+                   SUAwithNutrList <- SUAnutrCalc(SUAbalAvail = SUAbal, popSWS = popSWS)
+                   recalc_value$SUAmodtab <- SUAwithNutrList$SUA2save
+                   SUAwithNutr <- SUAwithNutrList$SUA2save
+                   foodPercapita <- SUAwithNutrList$foodPercapita
                    # Sys.sleep(0.80) 
                    # incProgress(0.80)
                    # 
-                   #-- FBS ----
+                   #-- FBS ---
                    # FBS <- FBScalc(SUA2save = SUAwithNutr, popSWS = popSWS)
                    # 
                    # faostatFBS <- FBS$faostat
                    # fiasFBS <- FBS$fias
-                   #######################################################
+                  
                    Sys.sleep(0.1) 
                    incProgress(0.95)
                  })
     
-    #-- New SUA ----
+    #++ New SUA ----
     # updated_data$SUAunbal <- SUAunbal
     updated_data$SUAbal <- SUAwithNutr
-    # updated_data$FBSaostat <- faostatFBS
+    # updated_data$FBSfaostat <- faostatFBS
     # updated_data$FBSfias <- fiasFBS
     
     showModal(modalDialog(
@@ -929,7 +1131,7 @@ observeEvent(input$save, { # Opening Observe event
       sprintf("Please wait for the calculations to be completed.")
     ))
     
-    
+  
     withProgress(message = 'Calculation in progress',
                  value = 0, {
                    
@@ -946,9 +1148,10 @@ observeEvent(input$save, { # Opening Observe event
                                                keytoken = tokenSuaU)
                    
                    if(!is.null(SUAunbal)){
+                     ValueElements <- c('5922', '5930', '5622', '5630')
+                   #  SUAunbal <- SUAunbal[!measuredElementSuaFbs %in% ValueElements]
                      live_data$SUAu <- SUAunbal
                    } else {
-                     
                      SUAunbal <- live_data$SUAu
                    }
                    
@@ -965,11 +1168,11 @@ observeEvent(input$save, { # Opening Observe event
                      
                      setnames(modifiedSUA, c('Country', 'ICSprod', 'Element'),
                               c('geographicAreaM49_fi', 'measuredItemFaostat_L2', 'measuredElementSuaFbs'))
-                     
+                   #  modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% ValueElements]
                      
                    } else if(input$csv_online == 2){
                      
-                     #-- Pulling uploaded file ----
+                     #++ Pulling uploaded file ----
                      modifiedSUA0 <- recalc_value$SUAupload
                      
                      setnames(modifiedSUA0, names(modifiedSUA0)[c(1,3,4)], c('geographicAreaM49_fi',
@@ -999,13 +1202,16 @@ observeEvent(input$save, { # Opening Observe event
                    }
                    
                    modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% elkeyNot2consider,]
-                   
+                 #  modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% ValueElements,]
+                   modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% '5023',]
                    # First compare what changed with respect to the original table
                    
                    if(nrow(recalc_value$SUAmodtab) == 0){
                      SUAinit <- recalc_value$SUAinit[!measuredElementSuaFbs %in% elkeyNot2consider,]
+                     SUAinit <- SUAinit[measuredElementSuaFbs != '5023']
                    } else {
                      SUAinit <- recalc_value$SUAmodtab[!measuredElementSuaFbs %in% elkeyNot2consider,]
+                     SUAinit <- SUAinit[measuredElementSuaFbs != '5023']
                    }
                    
                    SUAcomp <- merge(SUAinit, modifiedSUA, 
@@ -1045,7 +1251,7 @@ observeEvent(input$save, { # Opening Observe event
                    Sys.sleep(0.1)
                    incProgress(0.5)
                    
-                   #-- SUA balanced ----
+                   #++ SUA balanced ----
                    
                    eR <- SUAunbalMod[measuredElementSuaFbs == '5423']
                    
@@ -1054,10 +1260,15 @@ observeEvent(input$save, { # Opening Observe event
                    #        'Choose only to update Extraction rates or Input'
                    #        )
                    # )
-                   
+                 
                    primary <- unique(map_asfis$ics)
+                   SUAunbalMod <- SUAunbalMod[measuredElementSuaFbs != '5166']
                    SUAbalResults <- SUAbalCalc(SUA = SUAunbalMod, eR = eR, use = input$radioErVSinput)
                    SUAbal <- SUAbalResults$SUA
+                   SUAbal[measuredElementSuaFbs %in% c('5630', '5930'),flagMethod := 'c']
+                   
+                   FPfile <<- SUAbalResults$FPproblems
+                   
                    newMessages <- SUAbalResults$msg
                    FPproblems <- SUAbalResults$FPproblems$NotCovered
                    SecNegAv <- SUAbalResults$NegAv
@@ -1068,13 +1279,17 @@ observeEvent(input$save, { # Opening Observe event
                    Sys.sleep(0.1) 
                    incProgress(0.65) 
                    
-                   SUAwithNutr <- SUAnutrCalc(SUAbalAvail = SUAbal, popSWS = popSWS)
-                   recalc_value$SUAmodtab <- SUAwithNutr
+                   SUAwithNutrList <- SUAnutrCalc(SUAbalAvail = SUAbal, popSWS = popSWS)
+                   
+                   recalc_value$SUAmodtab <- SUAwithNutrList$SUA2save
+                   SUAwithNutr <- SUAwithNutrList$SUA2save
+                   foodPercapita <- SUAwithNutrList$foodPercapita
                    Sys.sleep(0.1) 
                    incProgress(0.80)
                    
-                   #-- FBS ----
-                   FBS <- FBScalc(SUA2save = SUAwithNutr, popSWS = popSWS)
+                   #++ FBS ----
+                   
+                   FBS <- FBScalc(SUA2save = rbind(SUAwithNutr, foodPercapita), popSWS = popSWS)
                    
                    faostatFBS <- FBS$faostat
                    fiasFBS <- FBS$fias
@@ -1083,10 +1298,10 @@ observeEvent(input$save, { # Opening Observe event
                  }) 
     
     
-    #-- New SUA ----
+    #++ New SUA ----
     updated_data$SUAunbal <- SUAunbal
     updated_data$SUAbal <- SUAwithNutr
-    updated_data$FBSaostat <- faostatFBS
+    updated_data$FBSfaostat <- faostatFBS
     updated_data$FBSfias <- fiasFBS
     
     showModal(modalDialog(
@@ -1110,7 +1325,6 @@ observeEvent(input$save, { # Opening Observe event
                    Sys.sleep(0.1)
                    incProgress(0.15) 
                    
-                   
                    SUAbal <- reloadDataToken(data = live_data$SUAb, 
                                              keycountry = sel_country, 
                                              minyear = input$btn_start_year, 
@@ -1120,6 +1334,11 @@ observeEvent(input$save, { # Opening Observe event
                                              keytoken = tokenSuaB)
                    
                    if(!is.null(SUAbal)){
+                     ValueElements <- c('5922', '5930', '5622', '5630')
+                     liveBval <- copy(SUAbal)
+                     liveBval <- liveBval[measuredElementSuaFbs %in% ValueElements]
+                     live_data$SUAbVal <- liveBval
+                   #  SUAbal <- SUAbal[!measuredElementSuaFbs %in% ValueElements]
                      live_data$SUAb <- SUAbal
                    } else {
                      SUAbal <- live_data$SUAb
@@ -1139,11 +1358,11 @@ observeEvent(input$save, { # Opening Observe event
                      
                      setnames(modifiedSUA, c('Country', 'ICSprod', 'Element'),
                               c('geographicAreaM49_fi', 'measuredItemFaostat_L2', 'measuredElementSuaFbs'))
-                     
+                    # modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% ValueElements]
                      
                    } else if(input$csv_online == 2){
                      
-                     #-- Pulling uploaded file ----
+                     #++ Pulling uploaded file ----
                      modifiedSUA0 <- recalc_value$SUAupload
                      
                      setnames(modifiedSUA0, names(modifiedSUA0)[c(1,3,4)], c('geographicAreaM49_fi',
@@ -1173,13 +1392,16 @@ observeEvent(input$save, { # Opening Observe event
                    }
                    
                    modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% elkeyNot2consider,]
-                   
+                 #  modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% ValueElements,]
+                   # modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% '5023',]
                    # First compare what changed with respect to the original table
                    
                    if(nrow(recalc_value$SUAmodtab) == 0){
                      SUAinit <- recalc_value$SUAinit[!measuredElementSuaFbs %in% elkeyNot2consider,]
+                    # SUAinit <- SUAinit[measuredElementSuaFbs != '5023']
                    } else {
                      SUAinit <- recalc_value$SUAmodtab[!measuredElementSuaFbs %in% elkeyNot2consider,]
+                    # SUAinit <- SUAinit[measuredElementSuaFbs != '5023']
                    }
                    
                    SUAcomp <- merge(SUAinit, modifiedSUA, 
@@ -1219,13 +1441,16 @@ observeEvent(input$save, { # Opening Observe event
                    Sys.sleep(0.1)
                    incProgress(0.5)
                    
-                   SUAwithNutr <- SUAnutrCalc(SUAbalAvail = SUAbalMod, popSWS = popSWS)
-                   recalc_value$SUAmodtab <- SUAwithNutr
+                   SUAwithNutrList <- SUAnutrCalc(SUAbalAvail = SUAbalMod, popSWS = popSWS)
+                   recalc_value$SUAmodtab <- SUAwithNutrList$SUA2save
+                   SUAwithNutr <- SUAwithNutrList$SUA2save
+                   foodPercapita <- SUAwithNutrList$foodPercapita
                    Sys.sleep(0.1) 
                    incProgress(0.80)
                    
-                   #-- FBS ----
-                   FBS <- FBScalc(SUA2save = SUAwithNutr, popSWS = popSWS)
+                   #++ FBS ----
+                   
+                   FBS <- FBScalc(SUA2save = rbind(SUAwithNutr, foodPercapita), popSWS = popSWS)
                    
                    faostatFBS <- FBS$faostat
                    fiasFBS <- FBS$fias
@@ -1233,10 +1458,11 @@ observeEvent(input$save, { # Opening Observe event
                    incProgress(0.95)
                  })
     
-    #-- New SUA ----
-    # updated_data$SUAunbal
+    #++ New SUA ----
+    updated_data$SUAunbal <- ifelse(nrow(updated_data$SUAunbal) == 0, 
+                                    live_data$SUAu, updated_data$SUAunbal)
     updated_data$SUAbal <- SUAwithNutr
-    updated_data$FBSaostat <- faostatFBS
+    updated_data$FBSfaostat <- faostatFBS
     updated_data$FBSfias <- fiasFBS
     
     showModal(modalDialog(
