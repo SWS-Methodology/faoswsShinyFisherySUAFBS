@@ -81,8 +81,8 @@ shinyServer(function(input, output, session) {
       # Input details
       selectInput(inputId = "btn_year",
                   label = 'End year',
-                  choices = c("", years_input) #,
-                  # selected = '2017'
+                  choices = c("", years_input)#,
+                #  selected = '2018'
       )
     }
   })
@@ -107,8 +107,8 @@ shinyServer(function(input, output, session) {
       
       selectInput(inputId = "btn_start_year",
                   label = 'Start year',
-                  choices = c("", start_year_input) #,
-                  # selected = '2014'
+                  choices = c("", start_year_input)#,
+                #  selected = '2015'
       )
     }
   })
@@ -121,10 +121,14 @@ shinyServer(function(input, output, session) {
                                 SUA = data.table())
   
   live_data <- reactiveValues(FBS = data.table(),
+                              FBSFaostat = data.table(),
                               SUAb = data.table(),
                               SUAbVal = data.table(),
                               SUAu = data.table(),
                               Pop = data.table())
+  
+  
+  FPfile <- reactiveValues()
   
   observeEvent(input$btn_start_year, {
     
@@ -167,8 +171,8 @@ shinyServer(function(input, output, session) {
         }
       } else {
         R_SWS_SHARE_PATH = "Z:"
-        SetClientFiles("/srv/shiny-server/.R/QA/")
-        GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
+        SetClientFiles("/srv/shiny-server/.R/PROD/")
+        GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
                            token = tokenFbs)
       }
       
@@ -201,26 +205,42 @@ shinyServer(function(input, output, session) {
         if(localrun){
           sel_country <- country_input[country_input$label == input$btn_country, code]
         # FPfile <<- readRDS(filename)
-          FPfile <<- list(primary = ReadDatatable('fi_fp_imb_primary', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')),
+          FPfile0 <- list(primary = ReadDatatable('fi_fp_imb_primary', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')),
                           secondary = ReadDatatable('fi_fp_imb_sec', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')),
                           secondaryTot = ReadDatatable('fi_fp_imb_sec_tot', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')), 
                           tertiary = ReadDatatable('fi_fp_imb_ter', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')),
                           quaternary = ReadDatatable('fi_fp_imb_quat', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')), 
                           NotCovered = ReadDatatable('fi_fp_not_covered', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')))
-        } else {
+          FPfile1 <- lapply(FPfile0, function(x){if(all(c('geographicaream49_fi', 'timepointyears') %in% names(x))) 
+            setnames(x, c('geographicaream49_fi', 'timepointyears'), c('geographicAreaM49_fi', 'timePointYears'))})
+          
+        
+          } else {
           sel_country <- country_input[country_input$label == input$btn_country, code]
           
           # FPfile <<- readRDS(file.path('/work', 'SWS_R_Share', "FisherySUAFBS", filename))
-          FPfile <<- list(primary = ReadDatatable('fi_fp_imb_primary', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')),
+          FPfile0 <- list(primary = ReadDatatable('fi_fp_imb_primary', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')),
                           secondary = ReadDatatable('fi_fp_imb_sec', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')),
                           secondaryTot = ReadDatatable('fi_fp_imb_sec_tot', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')), 
                           tertiary = ReadDatatable('fi_fp_imb_ter', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')),
                           quaternary = ReadDatatable('fi_fp_imb_quat', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')), 
                           NotCovered = ReadDatatable('fi_fp_not_covered', where = paste("geographicaream49_fi = '", sel_country, "'", sep = '')))
           
+          FPfile1 <- lapply(FPfile0, function(x){if(all(c('geographicaream49_fi', 'timepointyears') %in% names(x))) 
+            setnames(x, c('geographicaream49_fi', 'timepointyears'), c('geographicAreaM49_fi', 'timePointYears'))})
           }
+      
+      
+      FPfile[['primary']] <- FPfile1$primary
+      FPfile[['secondaryTot']] <- FPfile1$secondaryTot
+      FPfile[['secondary']] <- FPfile1$secondary
+      FPfile[['tertiary']] <- FPfile1$tertiary
+      FPfile[['quaternary']] <- FPfile1$quaternary
+      FPfile[['NotCovered']] <- FPfile1$NotCovered
     }
   })
+  
+
   
   
   #-- Element button ----
@@ -253,162 +273,7 @@ shinyServer(function(input, output, session) {
     sel_years <- as.character(as.numeric(input$btn_start_year):as.numeric(input$btn_year))
     
     if(input$tabs == "SUA compare"){
-      
-      # ----
-      # if(nrow(frozen_data$SUA) == 0){
-      #   
-      #   KeySUA <- DatasetKey(domain = "FisheriesCommodities", 
-      #                        dataset = "fi_sua_balanced_control", 
-      #                        dimensions = list(geographicAreaM49_fi = Dimension(name = "geographicAreaM49_fi", keys = sel_country),
-      #                                          measuredElementSuaFbs = Dimension(name = "measuredElementSuaFbs", 
-      #                                                                            GetCodeList("FisheriesCommodities", 
-      #                                                                                        "fi_sua_balanced_control",
-      #                                                                                        "measuredElementSuaFbs" )[,code]),
-      #                                          measuredItemFaostat_L2 = Dimension(name = "measuredItemFaostat_L2", 
-      #                                                                             GetCodeList("FisheriesCommodities", 
-      #                                                                                         "fi_sua_balanced_control",
-      #                                                                                         "measuredItemFaostat_L2" )[,code]),
-      #                                          timePointYears = Dimension(name = "timePointYears", keys =  sel_years )))
-      #   
-      #   withProgress(message = 'Frozen SUA data loading in progress',
-      #                value = 0, {
-      #                  Sys.sleep(0.25)
-      #                  incProgress(0.25)
-      #                  SUAfrozen <- GetData(KeySUA)
-      #                  Sys.sleep(0.75)
-      #                  incProgress(0.95)
-      #                })
-      #   
-      #   frozen_data$SUA <- SUAfrozen
-      #   
-      # } else if(nrow(frozen_data$SUA) > 0 &
-      #           unique(frozen_data$SUA$geographicAreaM49_fi) != input$btn_country |
-      #           min(unique(frozen_data$SUA$timePointYears)) != input$btn_start_year |
-      #           max(unique(frozen_data$SUA$timePointYears)) != input$btn_year){
-      #   
-      #   KeySUA <- DatasetKey(domain = "FisheriesCommodities", 
-      #                        dataset = "fi_sua_balanced_control", 
-      #                        dimensions = list(geographicAreaM49_fi = Dimension(name = "geographicAreaM49_fi", keys = sel_country),
-      #                                          measuredElementSuaFbs = Dimension(name = "measuredElementSuaFbs", 
-      #                                                                            GetCodeList("FisheriesCommodities", 
-      #                                                                                        "fi_sua_balanced_control",
-      #                                                                                        "measuredElementSuaFbs" )[,code]),
-      #                                          measuredItemFaostat_L2 = Dimension(name = "measuredItemFaostat_L2", 
-      #                                                                             GetCodeList("FisheriesCommodities", 
-      #                                                                                         "fi_sua_balanced_control",
-      #                                                                                         "measuredItemFaostat_L2" )[,code]),
-      #                                          timePointYears = Dimension(name = "timePointYears", keys =  sel_years )))
-      #   
-      #   withProgress(message = 'Frozen SUA data loading in progress',
-      #                value = 0, {
-      #                  Sys.sleep(0.25)
-      #                  incProgress(0.25)
-      #                  SUAfrozen <- GetData(KeySUA)
-      #                  Sys.sleep(0.75)
-      #                  incProgress(0.95)
-      #                })
-      #   
-      #   frozen_data$SUA <- SUAfrozen}
-      # ----
-
-      # ----
-      # if(nrow(live_data$SUAb) == 0){
-      #   # SUA live 
-      #   
-      #   if(localrun){
-      #     if(CheckDebug()){
-      #       library(faoswsModules)
-      #       SETTINGS = ReadSettings("sws.yml")
-      #       R_SWS_SHARE_PATH = SETTINGS[["share"]]
-      #       SetClientFiles(SETTINGS[["certdir"]])
-      #       GetTestEnvironment(baseUrl = SETTINGS[["server"]],
-      #                          token = tokenSuaB)
-      #     }
-      #   } else {
-      #     R_SWS_SHARE_PATH = "Z:"
-      #     SetClientFiles("/srv/shiny-server/shinyFisheriesCommodities")
-      #     GetTestEnvironment(baseUrl = "https://hqlqasws1.hq.un.fao.org:8181/sws",
-      #                        token = tokenSuaB)
-      #   }
-      #   
-      #   KeySUAbal <- DatasetKey(domain = "FisheriesCommodities", 
-      #                           dataset = "fi_sua_balanced", 
-      #                           dimensions = list(geographicAreaM49_fi = Dimension(name = "geographicAreaM49_fi", 
-      #                                                                              keys = sel_country),
-      #                                             measuredElementSuaFbs = Dimension(name = "measuredElementSuaFbs", 
-      #                                                                               keys = GetCodeList("FisheriesCommodities", 
-      #                                                                                                  "fi_sua_balanced",
-      #                                                                                                  "measuredElementSuaFbs")[,code]),
-      #                                             measuredItemFaostat_L2 = Dimension(name = "measuredItemFaostat_L2", 
-      #                                                                                GetCodeList("FisheriesCommodities", 
-      #                                                                                            "fi_sua_balanced",
-      #                                                                                            "measuredItemFaostat_L2" )[,code]),
-      #                                             timePointYears = Dimension(name = "timePointYears", keys = sel_years )))
-      #   
-      #   withProgress(message = 'SUA balanced data loading in progress',
-      #                value = 0, {
-      #                  Sys.sleep(0.25)
-      #                  incProgress(0.25)
-      #                  SUAbal <- GetData(KeySUAbal)
-      #                  Sys.sleep(0.75)
-      #                  incProgress(0.95)
-      #                })
-      #   
-      #   
-      #   live_data$SUAb <- SUAbal
-      #   
-      #   
-      #   
-      #   
-      # } else if(nrow(live_data$SUAb) > 0 &
-      #           unique(frozen_data$SUA$geographicAreaM49_fi) != input$btn_country |
-      #           min(unique(frozen_data$SUA$timePointYears)) != input$btn_start_year |
-      #           max(unique(frozen_data$SUA$timePointYears)) != input$btn_year){
-      #   if(localrun){
-      #     if(CheckDebug()){
-      #       library(faoswsModules)
-      #       SETTINGS = ReadSettings("sws.yml")
-      #       R_SWS_SHARE_PATH = SETTINGS[["share"]]
-      #       SetClientFiles(SETTINGS[["certdir"]])
-      #       GetTestEnvironment(baseUrl = SETTINGS[["server"]],
-      #                          token = tokenSuaB)
-      #     }
-      #   } else {
-      #     R_SWS_SHARE_PATH = "Z:"
-      #     SetClientFiles("/srv/shiny-server/shinyFisheriesCommodities")
-      #     GetTestEnvironment(baseUrl = "https://hqlqasws1.hq.un.fao.org:8181/sws",
-      #                        token = tokenSuaB)
-      #   }
-      #   
-      #   KeySUAbal <- DatasetKey(domain = "FisheriesCommodities", 
-      #                           dataset = "fi_sua_balanced", 
-      #                           dimensions = list(geographicAreaM49_fi = Dimension(name = "geographicAreaM49_fi", 
-      #                                                                              keys = sel_country),
-      #                                             measuredElementSuaFbs = Dimension(name = "measuredElementSuaFbs", 
-      #                                                                               keys = GetCodeList("FisheriesCommodities", 
-      #                                                                                                  "fi_sua_balanced",
-      #                                                                                                  "measuredElementSuaFbs")[,code]),
-      #                                             measuredItemFaostat_L2 = Dimension(name = "measuredItemFaostat_L2", 
-      #                                                                                GetCodeList("FisheriesCommodities", 
-      #                                                                                            "fi_sua_balanced",
-      #                                                                                            "measuredItemFaostat_L2" )[,code]),
-      #                                             timePointYears = Dimension(name = "timePointYears", keys = sel_years )))
-      #   
-      #   withProgress(message = 'SUA balanced data loading in progress',
-      #                value = 0, {
-      #                  Sys.sleep(0.25)
-      #                  incProgress(0.25)
-      #                  SUAbal <- GetData(KeySUAbal)
-      #                  Sys.sleep(0.75)
-      #                  incProgress(0.95)
-      #                })
-      #   
-      #   
-      #   live_data$SUAb <- SUAbal
-      #   
-      # }
-      # ----
-      
+    
       frozenB <- reloadData(data = frozen_data$SUA, 
                             keycountry = sel_country, 
                             minyear = input$btn_start_year, 

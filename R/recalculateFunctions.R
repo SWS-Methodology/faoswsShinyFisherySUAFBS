@@ -66,6 +66,8 @@ GPrecalc <- function(GP, map_asfis, new_map_asfis, year = input$btn_year){
 CDBrecalc <- function(CDB, map_isscfc, new_map_isscfc, year = input$btn_year){
   
   t1 <- Sys.time()
+  #if(any(names(CDB) == 'ics')){
+  #  setnames(CDB, 'ics', 'measuredItemISSCFC')}
   commodityDBIcs <- merge(CDB, map_isscfc, by = "measuredItemISSCFC")
   commodityDBIcs$measuredItemISSCFC <- as.character(commodityDBIcs$measuredItemISSCFC)
   
@@ -131,7 +133,7 @@ CDBrecalc <- function(CDB, map_isscfc, new_map_isscfc, year = input$btn_year){
 
   # Link table for special period ICS group changes
   link_table <- ReadDatatable("link_table")
-  
+
   ## Checks on link table
   # quantity different from 100% allocated
   link_table[ , check := sum(percentage), by=c("geographic_area_m49","flow","start_year","end_year","from_code")]
@@ -142,7 +144,7 @@ CDBrecalc <- function(CDB, map_isscfc, new_map_isscfc, year = input$btn_year){
   link_table2 <- merge(link_table, linkCorrespondence, by = "flow", allow.cartesian = TRUE)
   
   if(max(as.numeric(cdbMap_new$timePointYears)) == -Inf){
-    yearmax<- year
+    yearmax <- year
     } else {yearmax<- max(as.numeric(cdbMap_new$timePointYears))}
   
   link_table2$end_year <- ifelse(link_table2$end_year == "LAST", yearmax,
@@ -214,7 +216,7 @@ CDBrecalc <- function(CDB, map_isscfc, new_map_isscfc, year = input$btn_year){
                                            timePointYears,
                                            measuredElement,
                                            ics)]
-  
+
   tradeQ <- commodityDBAggr[measuredElement %in% c('5910', '5610')]
   tradeV <- commodityDBAggr[measuredElement %in% c('5922', '5622')]
   tradeQ[measuredElement == '5910', flow := 'EXP']
@@ -241,7 +243,8 @@ CDBrecalc <- function(CDB, map_isscfc, new_map_isscfc, year = input$btn_year){
                               tradeUV[,.(geographicAreaM49_fi,
                                          timePointYears,
                                          measuredElement,
-                                         ics, Value, 
+                                         ics,
+                                         Value, 
                                          flagObservationStatus, 
                                          flagMethod)])
   } else {
@@ -270,7 +273,6 @@ t1 <- Sys.time()
   
   elementSignTable <- ReadDatatable('element_sign_table')
   setnames(elementSignTable, 'measured_element', 'measuredElementSuaFbs')
-  
   # Now not considering food processing (as in plugin FP calculated later)
   SUAexpanded <- merge(SUA[measuredElementSuaFbs != "5023"], 
                        elementSignTable[ , .(measuredElementSuaFbs, sign)], 
@@ -290,7 +292,8 @@ SUAbalCalc <- function(SUA, eR, use){
   t1 <- Sys.time()
   SUAno131 <- SUA[ measuredElementSuaFbs != "5023"]
   SUA131 <- SUA[ measuredElementSuaFbs == "5023"]
-  
+
+
   elementSignTable <- ReadDatatable('element_sign_table')
   setnames(elementSignTable, 'measured_element', 'measuredElementSuaFbs')
   
@@ -301,12 +304,13 @@ SUAbalCalc <- function(SUA, eR, use){
 
   SUAexpanded[, availability := sum(Value * sign, na.rm = TRUE), 
               by = list(geographicAreaM49_fi, timePointYears, measuredItemFaostat_L2)]
-  
+ 
   # Check no negative primary availability. 
   # Now many production data are missing in the commodity DB in SWS so 
   # there are negative primary availabilities
   map_asfis <- ReadDatatable('map_asfis')
   setnames(map_asfis, c("asfis", "ics"), c("fisheriesAsfis", "measuredItemFaostat_L2"))
+  setkey(map_asfis)
   primary <- unique(map_asfis$measuredItemFaostat_L2)
   primaryneg <- SUAexpanded[availability < 0 & measuredItemFaostat_L2 %in% primary]
   
@@ -319,6 +323,7 @@ SUAbalCalc <- function(SUA, eR, use){
   } else {
     
     msg2email4 <- ''
+    
   }
   
   rou <- copy(primaryneg)
@@ -449,6 +454,48 @@ SUAbalCalc <- function(SUA, eR, use){
   
   SUAwithProd[ , sign := NULL]
   
+  ### ADD PLUGIN CODE ###############################
+  
+  # Calculate ratio of food to assign to primary elements
+  SUAvalProd <- SUAwithProd[measuredItemFaostat_L2 %in% primary & measuredElementSuaFbs == '5510' & timePointYears == as.character(max(as.numeric(yearVals)) - 1)]
+  SUAvalFood <- SUAwithProd[measuredItemFaostat_L2 %in% primary & measuredElementSuaFbs == '5141' & timePointYears == as.character(max(as.numeric(yearVals)) - 1)]
+  
+  if(SUAvalFood[,.N] >0){
+  foodShare <- merge(SUAvalProd, SUAvalFood, by = c('geographicAreaM49_fi', 
+                                                    'measuredItemFaostat_L2', 
+                                                    'timePointYears'),
+                     suffixes = c('Prod', 'Food'), all = TRUE)
+
+  foodShare[ , perc := (ValueFood/ValueProd), by = c('geographicAreaM49_fi', 
+                                                     'measuredItemFaostat_L2', 
+                                                     'timePointYears')]
+  } else {
+    foodShare[ , perc := 0]
+  }
+  # At least 3% is dedicated to Food
+  foodShare[ , perc := ifelse(perc < 0.03 | is.na(perc), 0.03, perc)]
+  
+  balancingElements <- ReadDatatable('balancing_elements')
+
+  setnames(balancingElements, names(balancingElements), c("geographicAreaM49_fi", 
+                                                          "measuredItemFaostat_L2",
+                                                          "measuredElementSuaFbs",
+                                                          "start_year", "end_year", "share"))
+
+  # Pull ICS whose balancing element is food for the country
+  onlyfood <- balancingElements[!measuredItemFaostat_L2 %in% primary & geographicAreaM49_fi == unique(foodShare$geographicAreaM49_fi) & 
+                                  measuredElementSuaFbs == '5141']
+  # For secondary groups at least 3% is dedicated to Food
+  onlyfood[ , perc := 0.03]
+  SUAvalFoodSec <- onlyfood[ , .(geographicAreaM49_fi, measuredItemFaostat_L2, perc)]
+  
+  # Take primary food
+  foodShare2apply1 <- foodShare[!is.na(perc) & perc != Inf & perc <= 1 ]
+  foodShare2apply1 <- foodShare2apply1[ , .(geographicAreaM49_fi, measuredItemFaostat_L2, perc)]
+  
+  # Put together primary and secondary food
+  foodShare2apply <- rbind(foodShare2apply1, SUAvalFoodSec)
+  ###################################
   
   tree <- ReadDatatable('fi_commodity_tree')
   treePrim <- copy(tree)
@@ -476,8 +523,7 @@ SUAnewEr <- merge(SUAwithEr, eR, by = c('geographicAreaM49_fi',
   
 SUAnewEr[measuredElementSuaFbs == '5423', Value := ifelse(!is.na(ValueNew) & Value != ValueNew, ValueNew, Value)]
 SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
-  } 
-  else {
+  } else {
     SUAnewEr <- copy(SUAwithEr)
     
 }
@@ -490,13 +536,53 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
                    by.x = 'child', by.y = 'measuredItemFaostat_L2', all.x = TRUE, allow.cartesian = TRUE)
   newTree[ , extraction_rate := Value ]
   newTree[ , Value:= NULL]
+##############################
+  # #-- Recalculate availability using food imputation for primary products ----
+  # food1 <- merge(SUAinput[availability > 0 & measuredElementSuaFbs == '5510'], 
+  #                foodShare2apply, 
+  #                by = c('geographicAreaM49_fi', 'measuredItemFaostat_L2'), 
+  #                all.x = TRUE )
+  # if(food1[!is.na(Value) & !is.na(perc),.N] > 0){
+  # food1[ , c('measuredElementSuaFbs', 
+  #            'flagObservationStatus',
+  #            'flagMethod'):= list('5141', 'E', 'b')]
+  # 
+  # food2 <- food1[!is.na(Value) & !is.na(perc), ValueFood := Value*perc]
+  # food2 <- food2[ , c('Value','perc') := NULL]
+  # 
+  # food2 <- food2[!is.na(ValueFood)]
+  # # If the required percentage is available it is assigned
+  # # Otherwise the food processing calculation will assign it
+  # # according to availability
+  # food <- food2[ availability < ValueFood, ValueFood := availability]
+  # food <- food[ , ValueFood := ValueFood * 0.95]
+  # setnames(food, 'ValueFood', 'Value')
+  # SUAFood <- rbind(SUAinput, food)
+  # 
+  # } else {
+  SUAFood <- SUAinput
+  # }
+  # 
+  # SUAFood <- merge(SUAFood, 
+  #                  elementSignTable[ , .(measuredElementSuaFbs, sign)], 
+  #                  by = "measuredElementSuaFbs", 
+  #                  all.x = TRUE)
+  # 
+  # SUAFood[, availability := sum(Value*sign, na.rm = TRUE), 
+  #         by = list(geographicAreaM49_fi, timePointYears, measuredItemFaostat_L2)]
+  # 
+  # SUAFood[ , sign := NULL ]
   
+  ###############################
+ 
   #--Food processing ----
+  #undebug(foodProcessingComputation)
   message("fi_SUA-FBS: Calculating food processing")
-  
-  FPdata_alltest <- foodProcessingComputation(SUAinput = SUAinput, 
+
+  FPdata_alltest <- foodProcessingComputation(SUAinput = SUAFood, 
                                               treeNewER = newTree, primary = primary)
   FPdatatest <- FPdata_alltest$result
+ 
   FPdatatest <- FPdatatest[Value != 0]
   FPproblemstest <- list()
   FPproblemstest <- FPdata_alltest$problems
@@ -524,17 +610,8 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
                             allow.cartesian = TRUE)
     setnames(avoidProblems2, 'child', 'measuredItemFaostat_L2')
     
-    # The problematic groups with food are recalculated without food
-    SUAnoFood0 <- SUAinput[measuredElementSuaFbs != '5141' ]
-    
-    SUAnoFood <- merge(SUAnoFood0, elementSignTable[ , .(measuredElementSuaFbs, sign)], by = "measuredElementSuaFbs", all.x = TRUE)
-    
-    SUAnoFood[, availability := sum(Value * sign, na.rm = TRUE), 
-                by = list(geographicAreaM49_fi, timePointYears, measuredItemFaostat_L2)]
-    
-    SUAnoFood[ , sign := NULL]
-    
-    subst <- merge(SUAnoFood, avoidProblems2[ , .(geographicAreaM49_fi,
+    ###################################
+    subst <- merge(SUAinput, avoidProblems2[ , .(geographicAreaM49_fi,
                                                  timePointYears,
                                                  measuredItemFaostat_L2)],
                    by = c("geographicAreaM49_fi",
@@ -542,20 +619,51 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
                           "measuredItemFaostat_L2"))
     
     # The part that was okay with food is recalculated without the problematic part
-    cancel <- merge(SUAinput, avoidProblems2[ , .(geographicAreaM49_fi,
+    cancel <- merge(SUAFood, avoidProblems2[ , .(geographicAreaM49_fi,
                                                  timePointYears,
                                                  measuredItemFaostat_L2)],
                     by = c("geographicAreaM49_fi",
                            "timePointYears", 
                            "measuredItemFaostat_L2"))
     
-    SUAinputcan <- SUAinput[!cancel, on = names(SUAinput)]
-  
+    SUAFoodcan <- SUAFood[!cancel, on = names(SUAFood)]
+    
+    SUAinputcan <- SUAFoodcan[!cancel, on = names(SUAinput)]
+    
+    ##################################3
+    
+    # # The problematic groups with food are recalculated without food
+    # SUAnoFood0 <- SUAinput[measuredElementSuaFbs != '5141' ]
+    # 
+    # SUAnoFood <- merge(SUAnoFood0, elementSignTable[ , .(measuredElementSuaFbs, sign)], by = "measuredElementSuaFbs", all.x = TRUE)
+    # 
+    # SUAnoFood[, availability := sum(Value * sign, na.rm = TRUE), 
+    #             by = list(geographicAreaM49_fi, timePointYears, measuredItemFaostat_L2)]
+    # 
+    # SUAnoFood[ , sign := NULL]
+    # 
+    # subst <- merge(SUAnoFood, avoidProblems2[ , .(geographicAreaM49_fi,
+    #                                              timePointYears,
+    #                                              measuredItemFaostat_L2)],
+    #                by = c("geographicAreaM49_fi",
+    #                       "timePointYears", 
+    #                       "measuredItemFaostat_L2"))
+    # 
+    # # The part that was okay with food is recalculated without the problematic part
+    # cancel <- merge(SUAinput, avoidProblems2[ , .(geographicAreaM49_fi,
+    #                                              timePointYears,
+    #                                              measuredItemFaostat_L2)],
+    #                 by = c("geographicAreaM49_fi",
+    #                        "timePointYears", 
+    #                        "measuredItemFaostat_L2"))
+    # 
+    # SUAinputcan <- SUAinput[!cancel, on = names(SUAinput)]
+
     if(nrow(SUAinputcan) > 0){
+
     FPdata_all1 <- foodProcessingComputation(SUAinput = SUAinputcan, 
                                              treeNewER = newTree, primary = primary)
     FPdata1 <- FPdata_all1$result
-    
     
     FPdata1 <- FPdata1[Value != 0]
     FPproblems1 <- list(primary = data.table(),
@@ -575,12 +683,13 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
                           NotCovered = data.table())
     }
     # FP calculated for problematic elements
-    
+ 
     FPdata_all2 <- foodProcessingComputation(SUAinput = subst,
                                              treeNewER = newTree,
                                              primary = primary)
     
     FPdata2 <- FPdata_all2$result
+
     FPdata2 <- FPdata2[Value != 0]
     FPproblems2 <- list(primary = data.table(),
                         secondaryTot = data.table(),
@@ -589,13 +698,15 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
                         quaternary = data.table(),
                         NotCovered = data.table())
     FPproblems2 <- FPdata_all2$problems
-    
     # Put together results and dataset to consider
     FPdata <- rbind(FPdata1, FPdata2)
     FPproblems <- FPproblems2
     SUAnoFP <- rbind(SUAinputcan, subst)
-  } else {SUAnoFP <- SUAinput
+    #####################################3
+  } else {SUAnoFP <- SUAFood #SUAinput
+  ##################################
   FPdata <- FPdatatest
+
   FPproblems <- list(primary = data.table(),
                       secondaryTot = data.table(),
                       secondary = data.table(),
@@ -604,7 +715,6 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
                       NotCovered = data.table())}
   
   message('Food re-processing okay')
-  
 
   FPdata <- FPdata[ , availability := NULL ]
   FPdata[ , c("flagObservationStatus", "flagMethod") := list("E", "i")]
@@ -613,7 +723,8 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
 
   # If processing value changed in the shiny, i.e. flagged as (E,f)
   # then value flagged (E,f) prevail on the computed one
-  
+
+  if(nrow(SUA131) > 0 | nrow(FPdata) > 0){
   FPdataupd <- merge(SUA131, FPdata, by = c('geographicAreaM49_fi', 'measuredItemFaostat_L2',
                                             'timePointYears', 'measuredElementSuaFbs'),
                      all = TRUE, suffixes = c('', 'Recalc'))
@@ -623,7 +734,7 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
   #                                               'flagMethod') := list(ValueRecalc,
   #                                                                     flagObservationStatusRecalc,
   #                                                                     flagMethodRecalc)]
-  
+#  browser()
   FPdataupd[!is.na(ValueRecalc), c('Value',
                                    'flagObservationStatus',
                                    'flagMethod') := list(ValueRecalc,
@@ -633,19 +744,17 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
   FPdataupd[ , c('ValueRecalc',
                  'flagObservationStatusRecalc',
                  'flagMethodRecalc') := NULL]
-  
-  
   SUAunbal <- rbind(SUAnoFP[!is.na(Value), ], FPdataupd[!is.na(Value), ])
+  } else {
+    SUAunbal <- SUAnoFP[!is.na(Value), ]
+  }  
+  
+  
   SUAunbal$flagObservationStatus <- as.character(SUAunbal$flagObservationStatus)
 
   } else {
     SUAunbal <- SUAwithProd[!is.na(Value), ]
   }
-  # R_SWS_SHARE_PATH <- Sys.getenv("R_SWS_SHARE_PATH")
-  # 
-  # saveRDS(FPproblems,
-  #         file.path(R_SWS_SHARE_PATH, "taglionic", "FPfisheries", "FoodProcessingFeedback.rds")
-  # )
 
   if(length(FPproblems) > 0 & exists('FPproblems$NotCovered')){
     if(nrow(FPproblems$NotCovered) > 0){
@@ -678,8 +787,9 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
   SUAunbal <- unique(SUAunbal)
   
   #-- Balancing ----
-  
-  SUAunbal <-  merge(SUAunbal, elementSignTable[, .(measuredElementSuaFbs, sign)], by = "measuredElementSuaFbs", all.x = TRUE)
+
+  SUAunbal <-  merge(SUAunbal, elementSignTable[, .(measuredElementSuaFbs, sign)], 
+                     by = "measuredElementSuaFbs", all.x = TRUE)
   SUAunbal$timePointYears <- as.character(SUAunbal$timePointYears)
   SUAunbal <- SUAunbal[measuredElementSuaFbs != '645']
   if(any(is.na(SUAunbal$sign))){
@@ -710,7 +820,10 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
     message(balancing[is.na(measuredElementSuaFbs) & availability != 0])
   }
   
-  balancing2merge <- balancing[ as.numeric(timePointYears) >= as.numeric(start_year) & as.numeric(timePointYears) <= as.numeric(end_year), Value := Value*share]
+  balancing2merge <- balancing[ as.numeric(timePointYears) >= as.numeric(start_year) & 
+               as.numeric(timePointYears) <= as.numeric(end_year),]
+  
+  balancing2merge <- balancing2merge[ , Value := Value*share]
   balancing2merge[ , c('start_year', 'end_year', 'share') := NULL]
   balancing2merge[ , c('flagObservationStatus', 'flagMethod') := list('E','b')]
   

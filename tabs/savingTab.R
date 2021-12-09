@@ -77,7 +77,7 @@ observeEvent(input$update,  {
   
   # Datasets
     
-  if(!is.data.table(updated_data$SUAunbal)){
+  if(!is.data.table(updated_data$SUAunbal) | nrow(updated_data$SUAunbal) == 0){
     
     SUAunbalTot <- reloadDataToken(data = live_data$SUAu, 
                                    keycountry = sel_country, 
@@ -99,7 +99,26 @@ observeEvent(input$update,  {
 
   SUAun <- SUAun[timePointYears %in% sel_years]
   
-  SUAb <- updated_data$SUAbal
+  if(!is.data.table(updated_data$SUAbal) | nrow(updated_data$SUAbal) == 0){
+    
+    SUAbalTot <- reloadDataToken(data = live_data$SUAb, 
+                                   keycountry = sel_country, 
+                                   minyear = input$btn_start_year, 
+                                   maxyear = input$btn_year,
+                                   keydomain = domainComm, 
+                                   keydataset = datasetSUABlive,
+                                   keytoken = tokenSuaB) 
+    
+    if(!is.null(SUAbalTot)){
+      SUAb <- SUAbalTot
+    } else {
+      SUAb <- live_data$SUAb
+    } 
+    
+  } else {
+    SUAb <- updated_data$SUAbal
+  }
+  
   SUAb <- SUAb[timePointYears %in% sel_years]
   
   # SUAbVal <- live_data$SUAbVal
@@ -107,10 +126,48 @@ observeEvent(input$update,  {
   # 
   # SUAb <- rbind(SUAb, SUAbVal)
   
-  FBSfias <- updated_data$FBSfias 
+  if(!is.data.table(updated_data$FBSfias) | nrow(updated_data$FBSfias) == 0){
+    
+    fbsfiastot <- reloadDataToken(data = live_data$FBS, 
+                                 keycountry = sel_country, 
+                                 minyear = input$btn_start_year, 
+                                 maxyear = input$btn_year,
+                                 keydomain = domainComm, 
+                                 keydataset = datasetFBSlive ,
+                                 keytoken = tokenFbs) 
+    
+    if(!is.null(fbsfiastot)){
+      FBSfias <- fbsfiastot
+    } else {
+      FBSfias <- live_data$FBS
+    } 
+    
+  } else {
+    FBSfias <- updated_data$FBSfias
+  }
+  
   FBSfias <- FBSfias[timePointYears %in% sel_years]
   
-  FBSfaostat <- updated_data$FBSfaostat
+  if(!is.data.table(updated_data$FBSfaostat) | nrow(updated_data$FBSfaostat) == 0){
+    
+    fbsfaostattot <- reloadDataToken(data = live_data$FBSFaostat, 
+                                  keycountry = sel_country, 
+                                  minyear = input$btn_start_year, 
+                                  maxyear = input$btn_year,
+                                  keydomain = domainComm, 
+                                  keydataset = datasetFBSfaostatlive,
+                                  keytoken = tokenFbsFaostat) 
+    
+    if(!is.null(fbsfaostattot)){
+      FBSfaostat <- fbsfaostattot
+    } else {
+      FBSfaostat <- live_data$FBSFaostat
+    } 
+    
+  } else {
+    FBSfaostat <- updated_data$FBSfaostat
+  }
+  
   FBSfaostat <- FBSfaostat[timePointYears %in% sel_years]
   
 message('Saving datasets...')
@@ -126,8 +183,8 @@ message('Saving datasets...')
     }
   } else {
     R_SWS_SHARE_PATH = "Z:"
-    SetClientFiles("/srv/shiny-server/.R/QA/")
-    GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
+    SetClientFiles("/srv/shiny-server/.R/PROD/")
+    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
                        token = tokenSuaUval)
   }
 
@@ -141,7 +198,7 @@ message('Saving datasets...')
   
   SUAun2blank <- GetData(KeySUAun)
   SUAun2blank <- SUAun2blank[ , c('Value', 'flagObservationStatus', 'flagMethod') := list(NA, NA, NA)]
-  
+
   SaveData(domain = domainComm,
            dataset = datasetSUAUval,
            data = SUAun2blank,
@@ -150,7 +207,7 @@ message('Saving datasets...')
   SUAun$timePointYears <- as.character(SUAun$timePointYears)
   SaveData(domain = domainComm,
            dataset = datasetSUAUval,
-           data = SUAun,
+           data = SUAun[!is.na(Value)],
            waitTimeout = Inf)
   message('SUA unbalanced validated saved')
   showModal(modalDialog(
@@ -170,8 +227,8 @@ message('Saving datasets...')
   
     } else {
     R_SWS_SHARE_PATH = "Z:"
-    SetClientFiles("/srv/shiny-server/.R/QA/")
-    GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
+    SetClientFiles("/srv/shiny-server/.R/PROD/")
+    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
                        token = tokenSuaU)
   }
   
@@ -193,7 +250,7 @@ message('Saving datasets...')
 
   SaveData(domain = domainComm,
            dataset = datasetSUAUlive,
-           data = SUAun,
+           data = SUAun[!is.na(Value)],
            waitTimeout = Inf)
   message('SUA unbalanced live saved')
   showModal(modalDialog(
@@ -213,8 +270,8 @@ message('Saving datasets...')
     }
   } else {
     R_SWS_SHARE_PATH = "Z:"
-    SetClientFiles("/srv/shiny-server/.R/QA/")
-    GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
+    SetClientFiles("/srv/shiny-server/.R/PROD/")
+    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
                        token = tokenSuaBval)
   }
   
@@ -238,7 +295,7 @@ message('Saving datasets...')
   SUAb$timePointYears <- as.character(SUAb$timePointYears)
   SaveData(domain = domainComm,
            dataset = datasetSUABval,
-           data = SUAb,
+           data = SUAb[!is.na(Value)],
            waitTimeout = Inf)
   message('SUA balanced validated saved')
   showModal(modalDialog(
@@ -257,8 +314,8 @@ message('Saving datasets...')
     }
     } else {
     R_SWS_SHARE_PATH = "Z:"
-    SetClientFiles("/srv/shiny-server/.R/QA/")
-    GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
+    SetClientFiles("/srv/shiny-server/.R/PROD/")
+    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
                        token = tokenSuaB)
   }
   
@@ -280,7 +337,7 @@ message('Saving datasets...')
 
   SaveData(domain = domainComm,
            dataset = datasetSUABlive,
-           data = SUAb,
+           data = SUAb[!is.na(Value)],
            waitTimeout = Inf)
   message('SUA balanced live saved')
   showModal(modalDialog(
@@ -299,8 +356,8 @@ message('Saving datasets...')
     }
   } else {
     R_SWS_SHARE_PATH = "Z:"
-    SetClientFiles("/srv/shiny-server/.R/QA/")
-    GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
+    SetClientFiles("/srv/shiny-server/.R/PROD/")
+    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
                        token = tokenFbsFiasval)
   }
 
@@ -323,7 +380,7 @@ message('Saving datasets...')
   FBSfias$timePointYears <- as.character(FBSfias$timePointYears)
   SaveData(domain = domainComm,
            dataset = datasetFBSval,
-           data = FBSfias,
+           data = FBSfias[!is.na(Value)],
            waitTimeout = Inf)
   message('FBS Fias validated saved')
   showModal(modalDialog(
@@ -343,8 +400,8 @@ message('Saving datasets...')
   
     } else {
     R_SWS_SHARE_PATH = "Z:"
-    SetClientFiles("/srv/shiny-server/.R/QA/")
-    GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
+    SetClientFiles("/srv/shiny-server/.R/PROD/")
+    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
                        token = tokenFbs)
   }
   
@@ -367,7 +424,7 @@ message('Saving datasets...')
   FBSfias$timePointYears <- as.character(FBSfias$timePointYears)
   SaveData(domain = domainComm,
            dataset = datasetFBSlive,
-           data = FBSfias,
+           data = FBSfias[!is.na(Value)],
            waitTimeout = Inf)
   message('FBS Fias live saved')
   showModal(modalDialog(
@@ -387,8 +444,8 @@ message('Saving datasets...')
   
     } else {
     R_SWS_SHARE_PATH = "Z:"
-    SetClientFiles("/srv/shiny-server/.R/QA/")
-    GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
+    SetClientFiles("/srv/shiny-server/.R/PROD/")
+    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
                        token = tokenFbsFaostatval)
   }
   
@@ -410,7 +467,7 @@ message('Saving datasets...')
   FBSfaostat$timePointYears <- as.character(FBSfaostat$timePointYears)
   SaveData(domain = domainComm,
            dataset = datasetFBSfaostatval,
-           data = FBSfaostat,
+           data = FBSfaostat[!is.na(Value)],
            waitTimeout = Inf)
   message('FBS Faostat validated saved')
   showModal(modalDialog(
@@ -430,8 +487,8 @@ message('Saving datasets...')
   
     } else {
     R_SWS_SHARE_PATH = "Z:"
-    SetClientFiles("/srv/shiny-server/.R/QA/")
-    GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
+    SetClientFiles("/srv/shiny-server/.R/PROD/")
+    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
                        token = tokenFbsFaostat)
   }
   
@@ -443,7 +500,7 @@ message('Saving datasets...')
                                        GetCodeList(domainComm, datasetFBSfrozen,"measuredItemFaostat_L2" )[,code]),
     timePointYears = Dimension(name = "timePointYears", keys =  as.character(sel_years) )))
   
-  fbsFaostatlive2blank <- GetData(KeyFbsfaostat)
+  fbsFaostatlive2blank <- GetData(KeyFbsfaostatlive)
   fbsFaostatlive2blank <- fbsFaostatlive2blank[ , c('Value', 'flagObservationStatus', 'flagMethod') := list(NA, NA, NA)]
   
   SaveData(domain = domainComm,
@@ -453,7 +510,7 @@ message('Saving datasets...')
 
   SaveData(domain = domainComm,
            dataset = datasetFBSfaostatlive,
-           data = FBSfaostat,
+           data = FBSfaostat[!is.na(Value)],
            waitTimeout = Inf)
   message('FBS Faostat live saved')
   #-- The End ----

@@ -17,17 +17,17 @@ extrR_reac <- reactive({
       }
     } else {
       R_SWS_SHARE_PATH = "Z:"
-      SetClientFiles("/srv/shiny-server/.R/QA/")
-      GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
+      SetClientFiles("/srv/shiny-server/.R/PROD/")
+      GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
                          token = tokenSuaB)
     }
 
-  KeySUAbal <- DatasetKey(domain = "FisheriesCommodities", dataset = "fi_sua_balanced", dimensions = list(
+  KeySUAbal <- DatasetKey(domain = "FisheriesCommodities", dataset = datasetSUABlive, dimensions = list(
     geographicAreaM49_fi = Dimension(name = "geographicAreaM49_fi", keys = sel_country),
     measuredElementSuaFbs = Dimension(name = "measuredElementSuaFbs", 
                                       keys = '5423'), 
     measuredItemFaostat_L2 = Dimension(name = "measuredItemFaostat_L2", 
-                                       keys = GetCodeList("FisheriesCommodities", "fi_sua_balanced","measuredItemFaostat_L2" )[,code]),
+                                       keys = GetCodeList("FisheriesCommodities", datasetSUABlive,"measuredItemFaostat_L2" )[,code]),
     timePointYears = Dimension(name = "timePointYears", keys = sel_years )))
   
   withProgress(message = 'Extraction rate data loading in progress',
@@ -88,18 +88,18 @@ observeEvent(input$updER, {
   
     } else {
     R_SWS_SHARE_PATH = "Z:"
-    SetClientFiles("/srv/shiny-server/.R/QA/")
-    GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
+    SetClientFiles("/srv/shiny-server/.R/PROD/")
+    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
                        token = tokenSuaB)
   }
   
   
-  KeySUAbal <- DatasetKey(domain = "FisheriesCommodities", dataset = "fi_sua_balanced", dimensions = list(
+  KeySUAbal <- DatasetKey(domain = "FisheriesCommodities", dataset = datasetSUABlive, dimensions = list(
     geographicAreaM49_fi = Dimension(name = "geographicAreaM49_fi", keys = sel_country),
     measuredElementSuaFbs = Dimension(name = "measuredElementSuaFbs", 
                                       keys = '5423'), 
     measuredItemFaostat_L2 = Dimension(name = "measuredItemFaostat_L2", 
-                                       keys = GetCodeList("FisheriesCommodities", "fi_sua_balanced","measuredItemFaostat_L2" )[,code]),
+                                       keys = GetCodeList("FisheriesCommodities", datasetSUABlive,"measuredItemFaostat_L2" )[,code]),
     timePointYears = Dimension(name = "timePointYears", keys = sel_years )))
   
   SUAbalEr <- GetData(KeySUAbal)

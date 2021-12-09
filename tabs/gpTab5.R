@@ -8,7 +8,7 @@ gpTab_reac <- reactive({
   sel_country <- country_input[country_input$label == input$btn_country, code]
   sel_years <- as.character(as.numeric(input$btn_start_year):as.numeric(input$btn_year))
   sel_group_fbs <- as.character(groups_input[label %in% input$btn_group_fbs_tab5]$code)
-
+  
   group_sel <- groups_input[ label %in% input$btn_group_fbs_tab5]$code
   # ICS product in the chosen FBS group
   ICSinput_code <- l2l1[code_l1 %in% sel_group_fbs ]$code_l2
@@ -17,25 +17,25 @@ gpTab_reac <- reactive({
   # -- Get GP data ----
   
   if(nrow(InitialDatasets$GP) == 0){
-  keyDim <- c("geographicAreaM49_fi", "fisheriesAsfis", "measuredElement", "timePointYears")
-  
-  KeyGlobal <- DatasetKey(domain = "Fisheries", dataset = "fi_global_production", dimensions = list(
-    geographicAreaM49_fi = Dimension(name = "geographicAreaM49_fi", keys = sel_country),
-    fisheriesAsfis = Dimension(name = "fisheriesAsfis", keys = GetCodeList("Fisheries", "fi_global_production","fisheriesAsfis" )[,code]),
-    fisheriesCatchArea = Dimension(name = "fisheriesCatchArea", keys = GetCodeList("Fisheries", "fi_global_production","fisheriesCatchArea" )[,code]),
-    measuredElement = Dimension(name = "measuredElement", keys = c("FI_001")),
-    timePointYears = Dimension(name = "timePointYears", keys = sel_years)))
-  
-  withProgress(message = 'Global production data loading in progress',
-               value = 0, {
-                 Sys.sleep(0.25)
-                 incProgress(0.25)
-                 globalProduction <- GetData(KeyGlobal)
-                 Sys.sleep(0.75)
-                 incProgress(0.95)
-               })
-  InitialDatasets$GP <- globalProduction
-  
+    keyDim <- c("geographicAreaM49_fi", "fisheriesAsfis", "measuredElement", "timePointYears")
+    
+    KeyGlobal <- DatasetKey(domain = "Fisheries", dataset = datasetGP, dimensions = list(
+      geographicAreaM49_fi = Dimension(name = "geographicAreaM49_fi", keys = sel_country),
+      fisheriesAsfis = Dimension(name = "fisheriesAsfis", keys = GetCodeList("Fisheries", datasetGP,"fisheriesAsfis" )[,code]),
+      fisheriesCatchArea = Dimension(name = "fisheriesCatchArea", keys = GetCodeList("Fisheries",datasetGP,"fisheriesCatchArea" )[,code]),
+      measuredElement = Dimension(name = "measuredElement", keys = c("FI_001")),
+      timePointYears = Dimension(name = "timePointYears", keys = sel_years)))
+    
+    withProgress(message = 'Global production data loading in progress',
+                 value = 0, {
+                   Sys.sleep(0.25)
+                   incProgress(0.25)
+                   globalProduction <- GetData(KeyGlobal)
+                   Sys.sleep(0.75)
+                   incProgress(0.95)
+                 })
+    InitialDatasets$GP <- globalProduction
+    
   } else {
     
     globalProduction <- InitialDatasets$GP
@@ -68,7 +68,7 @@ gpTab_reac <- reactive({
   globalProductionIcs <- merge(globalProduction, map_asfis_filtered, by = c("fisheriesAsfis"))
   
   globalProductionMapping <- merge(globalProductionIcs, l2l1[ , .(code_l1, code_l2)], 
-                               by.x = 'ICSProd', by.y = 'code_l2')
+                                   by.x = 'ICSProd', by.y = 'code_l2')
   
   # globalProductionMapping[ , c('Ratio', 'Selection') := list(1, TRUE)]
   # gp_map <- ReadDatatable('gp_mapping', where = paste("country = '", sel_country, "'", sep = ''))#data.table(Country = '', Asfis = '', from = '', to = '', start = '', end = '', ratio = '') 
@@ -92,14 +92,14 @@ output$gp_tab5 <-  DT::renderDataTable( server = FALSE, {
   gp_tab <- copy(gpTab_reac()$GP)
   
   validate(need(nrow(gp_tab) >0,
-           'No GP data to show.'))
+                'No GP data to show.'))
   
   setnames(gp_tab, c("geographicAreaM49_fi", "fisheriesAsfis",
-                         "timePointYears",
-                         "flagObservationStatus",
-                         "flagMethod", "code_l1"),
+                     "timePointYears",
+                     "flagObservationStatus",
+                     "flagMethod", "code_l1"),
            c('Country', 'Species', 'Year', 'F1', 'F2', 'FBSgroup'))
-
+  
   gp_tab_out <- dcast(gp_tab, Country + FBSgroup + ICSProd + description + Species ~ Year, value.var = c("Value"))
   # Deleted: + Selection + Ratio
   # rhandsontable(gp_tab_out, rowHeaders = NULL, width = 'auto', height = 'auto')
@@ -110,11 +110,10 @@ output$gp_tab5 <-  DT::renderDataTable( server = FALSE, {
                                                  buttons = c('csv', 'excel', 'pdf')))
 })
 
-
 gpMap_reac <- reactive({
   
   req(input$btn_country)
-
+  
   sel_country <- country_input[country_input$label == input$btn_country, code]
   
   gp_map <- ReadDatatable('gp_mapping', where = paste("country = '", sel_country, "'", sep = ''))#data.table(Country = '', Asfis = '', from = '', to = '', start = '', end = '', ratio = '') 
@@ -129,9 +128,8 @@ gpMap_reac <- reactive({
   }
   
   return(list(newMap = gp_map))
-
+  
 })
-
 
 output$gp_map_tab5 <-  renderRHandsontable({
   
@@ -141,7 +139,7 @@ output$gp_map_tab5 <-  renderRHandsontable({
 })
 
 observeEvent(input$saveGP, {
-
+  
   sel_country <- country_input[country_input$label == input$btn_country, code]
   new_map <- rhandsontable::hot_to_r(input$gp_map_tab5)
   

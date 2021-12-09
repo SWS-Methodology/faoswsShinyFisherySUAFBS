@@ -8,48 +8,7 @@ overviewTab_reac <- reactive({
   sel_years <- as.character(as.numeric(input$btn_start_year):as.numeric(input$btn_year))
   sel_elements_fbs <- as.character(element_input[label == input$btn_element_fbs]$code)
   sel_fbs_groups <- as.character(c(seq(10, 90, by = 10), 99))
-  
-  # if(CheckDebug()){
-  # 
-  #   library(faoswsModules)
-  #   SETTINGS = ReadSettings("sws.yml")
-  # 
-  #   ## If you're not on the system, your settings will overwrite any others
-  #   R_SWS_SHARE_PATH = SETTINGS[["share"]]
-  # 
-  #   ## Define where your certificates are stored
-  #   SetClientFiles(SETTINGS[["certdir"]])
-  # 
-  #   ## Get session information from SWS. Token must be obtained from web interface
-  #   GetTestEnvironment(baseUrl = SETTINGS[["server"]],
-  #                      token = tokenFbs)
-  # 
-  # }
-  # 
-  # # R_SWS_SHARE_PATH = "Z:"
-  # # SetClientFiles("/srv/shiny-server/shinyFisheriesCommodities")
-  # # GetTestEnvironment(baseUrl = "https://hqlqasws1.hq.un.fao.org:8181/sws",
-  # #                      token = tokenFbs)
-  #   
-  # 
-  # KeyFBSfias <- DatasetKey(domain = "FisheriesCommodities", dataset = "fi_fbs_fias", dimensions = list(
-  #   geographicAreaM49_fi = Dimension(name = "geographicAreaM49_fi", keys = sel_country),
-  #   measuredElementSuaFbs = Dimension(name = "measuredElementSuaFbs", 
-  #                                     keys = sel_elements_fbs), # Or, if all elements, GetCodeList("FisheriesCommodities", "fi_fbs_fias_control","measuredElementSuaFbs" )[,code])
-  #   measuredItemFaostat_L2 = Dimension(name = "measuredItemFaostat_L2", 
-  #                                      keys = sel_fbs_groups),
-  #   timePointYears = Dimension(name = "timePointYears", keys = sel_years )))
-  # 
-  # withProgress(message = 'FBS live data loading in progress',
-  #              value = 0, {
-  #                
-  #                Sys.sleep(0.25)
-  #                incProgress(0.25)
-  #                FBSfias <- GetData(KeyFBSfias)
-  #                Sys.sleep(0.75)
-  #                incProgress(0.95)
-  #              })
-  
+ 
   validate(
     need(nrow(frozen_data$FBS) > 0, "No frozen FBS data for this country. Please select another country.")
   )

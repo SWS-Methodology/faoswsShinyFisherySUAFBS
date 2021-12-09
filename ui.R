@@ -5,8 +5,8 @@ ui = fluidPage(
          column(3, 
                 selectInput(inputId = "btn_country", 
                             label = 'Country', 
-                            choices = country_input$label #, 
-                            # selected = 'Chile - 152'
+                            choices = country_input$label#, 
+                           # selected = 'Republic of Korea - 410'
                 )       
          ),
          column(1, 
@@ -144,7 +144,7 @@ ui = fluidPage(
                                      rHandsontableOutput('cdb_map_tab6')
                               ),
                               column(9,
-                                     h4('Note the ICS codes in the table refer to YBKlang file amd applies to ISSCFC codes,
+                                     h4('Note the ICS codes in the table refer to YBKlang file and applies to ISSCFC codes,
                               i.e. the ICS codes are the default ones before the application of the link table.'),
                                      DT::dataTableOutput('cdb_tab6') 
                               )

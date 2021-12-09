@@ -18,48 +18,7 @@ SUAcomparingTab_reac <- reactive({
   l2l1 <- ReadDatatable('ics_l1_2_ics_l2')
   
   ics2select <- l2l1[code_l1 %in% sel_group_fbs ]$code_l2
-  
-  # if(CheckDebug()){
-  # 
-  #   library(faoswsModules)
-  #   SETTINGS = ReadSettings("sws.yml")
-  # 
-  #   ## If you're not on the system, your settings will overwrite any others
-  #   R_SWS_SHARE_PATH = SETTINGS[["share"]]
-  # 
-  #   ## Define where your certificates are stored
-  #   SetClientFiles(SETTINGS[["certdir"]])
-  # 
-  #   ## Get session information from SWS. Token must be obtained from web interface
-  #   GetTestEnvironment(baseUrl = SETTINGS[["server"]],
-  #                      token = tokenSuaB)
-  # 
-  # }
-  # 
-  # # R_SWS_SHARE_PATH = "Z:"
-  # # SetClientFiles("/srv/shiny-server/shinyFisheriesCommodities")
-  # # GetTestEnvironment(baseUrl = "https://hqlqasws1.hq.un.fao.org:8181/sws",
-  # #                      token = tokenSuaB)
-  #   
-  # 
-  # KeySUAbal <- DatasetKey(domain = "FisheriesCommodities", dataset = "fi_sua_balanced", dimensions = list(
-  #   geographicAreaM49_fi = Dimension(name = "geographicAreaM49_fi", keys = sel_country),
-  #   measuredElementSuaFbs = Dimension(name = "measuredElementSuaFbs", 
-  #                                     keys = sel_element_sua), # Or, if all elements, GetCodeList("FisheriesCommodities", "fi_fbs_fias_control","measuredElementSuaFbs" )[,code])
-  #   measuredItemFaostat_L2 = Dimension(name = "measuredItemFaostat_L2", 
-  #                                      keys = ics2select),
-  #   timePointYears = Dimension(name = "timePointYears", keys = sel_years )))
-  # 
-  # withProgress(message = 'SUA balanced data loading in progress',
-  #              value = 0, {
-  #                
-  #                Sys.sleep(0.25)
-  #                incProgress(0.25)
-  #                SUAbal <- GetData(KeySUAbal)
-  #                Sys.sleep(0.75)
-  #                incProgress(0.95)
-  #              })
-  
+ 
   validate(
     need(nrow(frozen_data$SUA) > 0, "No frozen SUA data for this country. Please select another country.")
   )

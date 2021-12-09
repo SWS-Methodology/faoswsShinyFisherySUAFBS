@@ -18,7 +18,7 @@ library(shinyWidgets)
 source('R/recalculateFunctions.R')
 source('R/ErCalcReviewed.R')
 source('R/InputCalc.R')
-source('R/FoodProcCalcNew.R')
+source('R/FoodProcCalcNew3.R')
 source('R/reloadData.R')
 
 # token <- as.character(input$btn_token)
@@ -34,13 +34,13 @@ if(localrun){
     R_SWS_SHARE_PATH = SETTINGS[["share"]]
     SetClientFiles(SETTINGS[["certdir"]])
     GetTestEnvironment(baseUrl = SETTINGS[["server"]],
-                       token = '0211dad4-4c6a-4f66-a2f0-f21a1edef8a2')
-    }
+                       token = 'd679952e-6130-45c4-abe4-9297ee07406c') # SETTINGS[["token"]])#
+  }
 } else {
   R_SWS_SHARE_PATH = "Z:"
-  SetClientFiles("/srv/shiny-server/.R/QA/")
-  GetTestEnvironment(baseUrl = "https://swsqa.aws.fao.org:8181",
-                     token = "54992801-519f-4d80-89f4-2de4aadada87")
+  SetClientFiles("/srv/shiny-server/.R/PROD/")
+  GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+                     token = "9c7fd281-56a2-410e-801d-602677b8ee5a")
 }
 #-- Encoding ----
 
@@ -93,6 +93,29 @@ replaceforeignchars <- function(dat)
   dat
 }
 
+#-- Aggregate flags ----
+
+flagMethodAss <- function(fos){
+  
+  
+  if(is.na(fos)){
+    fm <- '-'
+  } else {
+    
+    fos <- as.character(fos)
+    
+    if(fos == 'E'){
+      fm <- 'f'
+    } else if(fos == 'I'){
+      fm <- 'i'
+    }  else {
+      fm <- '-'
+    }
+  }
+  return(as.character(fm))
+}
+
+
 #-- Lists ----
 
 # Tokens plugin
@@ -113,7 +136,7 @@ tokenFbsFaostatval <- tokensVal$token[4]
 domainGP <- 'Fisheries'
 domainComm <- 'FisheriesCommodities'
 
-datasetGP <- 'fi_global_production'
+datasetGP <- 'fi_fbs_global_production'
 datasetCDB <- 'commodities_total'
 datasetSUABfrozen <-'fi_sua_balanced_validated'
 datasetFBSfrozen <- 'fi_fbs_fias_validated'
@@ -197,6 +220,6 @@ updated_mappings <- reactiveValues(GP = data.table(),
 # Name of file to read
 filename <- '' 
 
-FPfile <<- list(primary = data.table(), secondary = data.table(),
-                secondaryTot = data.table(), tertiary = data.table(),
-                quaternary = data.table(), NotCovered = data.table())
+# FPfile <<- list(primary = data.table(), secondary = data.table(),
+#                 secondaryTot = data.table(), tertiary = data.table(),
+#                 quaternary = data.table(), NotCovered = data.table())
