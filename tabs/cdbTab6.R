@@ -31,6 +31,7 @@ cdbTab_reac <- reactive({
                    Sys.sleep(0.75)
                    incProgress(0.95)
                  })
+   # commodityDB[, Value := round(Value,2)]
     commodityDB$flagObservationStatus <- factor(commodityDB$flagObservationStatus,
                                                 levels = c('M', 'O', 'N', '', 'X', 'T', 'E', 'I'), 
                                                 ordered = TRUE)

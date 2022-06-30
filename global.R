@@ -18,12 +18,12 @@ library(shinyWidgets)
 source('R/recalculateFunctions.R')
 source('R/ErCalcReviewed.R')
 source('R/InputCalc.R')
-source('R/FoodProcCalcNew3.R')
+source('R/FoodProcCalcNew3_rounded.R')
 source('R/reloadData.R')
 
 # token <- as.character(input$btn_token)
 
-localrun <- TRUE
+localrun <- FALSE
 
 #-- Token QA ----
 
@@ -39,7 +39,7 @@ if(localrun){
 } else {
   R_SWS_SHARE_PATH = "Z:"
   SetClientFiles("/srv/shiny-server/.R/PROD/")
-  GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+  GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                      token = "9c7fd281-56a2-410e-801d-602677b8ee5a")
 }
 #-- Encoding ----
@@ -115,6 +115,17 @@ flagMethodAss <- function(fos){
   return(as.character(fm))
 }
 
+# Sum function (to avoid small, inexistent unbalance) -----
+
+sum <- function(x, na.rm = TRUE){
+  
+  if(dplyr::near(base::sum(x, na.rm = TRUE), 0)){
+    0
+  } else {
+    base::sum(x, na.rm = TRUE)
+  }
+
+}
 
 #-- Lists ----
 
@@ -219,6 +230,9 @@ updated_mappings <- reactiveValues(GP = data.table(),
                                    CDB = data.table())
 # Name of file to read
 filename <- '' 
+
+# Link table
+link_table_initial <- ReadDatatable("link_table")
 
 # FPfile <<- list(primary = data.table(), secondary = data.table(),
 #                 secondaryTot = data.table(), tertiary = data.table(),

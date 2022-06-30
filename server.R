@@ -157,7 +157,7 @@ shinyServer(function(input, output, session) {
       validate(
         need(nrow(FBSfrozen) > 0, 'No frozen FBS data for these country and years.')
       )
-      
+   #   FBSfrozen[, Value := round(Value,2)]
       frozen_data$FBS <- FBSfrozen[geographicAreaM49_fi == sel_country]
      
       if(localrun){
@@ -172,7 +172,7 @@ shinyServer(function(input, output, session) {
       } else {
         R_SWS_SHARE_PATH = "Z:"
         SetClientFiles("/srv/shiny-server/.R/PROD/")
-        GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+        GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                            token = tokenFbs)
       }
       
@@ -194,7 +194,7 @@ shinyServer(function(input, output, session) {
                      incProgress(0.95)
                    })
      
-     
+    #  FBSfias[, Value := round(Value,2)]
       live_data$FBS <- FBSfias[geographicAreaM49_fi == sel_country]
       
       validate(need(nrow(live_data$FBS) > 0, 'No FIAS FBS data for these country and years.'))

@@ -31,6 +31,7 @@ if(nrow(data) == 0){
                })
   
   data <- dataKey
+ # data[, Value := round(Value,2)]
   return(data)
   
 } else if(nrow(data) > 0 &
@@ -61,6 +62,7 @@ if(nrow(data) == 0){
                })
   
   data <- dataKey
+ # data[, Value := round(Value,2)]
   return(data)
 } else {data <- NULL}
   }
@@ -89,7 +91,7 @@ reloadDataToken <- function(data, keycountry, minyear, maxyear, keydomain, keyda
     } else {
       R_SWS_SHARE_PATH = "Z:"
       SetClientFiles("/srv/shiny-server/.R/PROD/")
-      GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+      GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                          token = keytoken)
     }
     
@@ -116,6 +118,7 @@ reloadDataToken <- function(data, keycountry, minyear, maxyear, keydomain, keyda
     })
     
     data <- dataKey
+  #  data[, Value := round(Value,2)]
     return(data)
     
   } else if(nrow(data) > 0 &
@@ -135,7 +138,7 @@ reloadDataToken <- function(data, keycountry, minyear, maxyear, keydomain, keyda
     } else {
       R_SWS_SHARE_PATH = "Z:"
       SetClientFiles("/srv/shiny-server/.R/PROD/")
-      GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+      GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                          token = keytoken)
     }
     
@@ -162,6 +165,7 @@ reloadDataToken <- function(data, keycountry, minyear, maxyear, keydomain, keyda
                  })
     
     data <- dataKey
+  #  data[, Value := round(Value,2)]
     return(data)
   } else {data <- NULL}
 }

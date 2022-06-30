@@ -18,7 +18,7 @@ extrR_reac <- reactive({
     } else {
       R_SWS_SHARE_PATH = "Z:"
       SetClientFiles("/srv/shiny-server/.R/PROD/")
-      GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+      GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                          token = tokenSuaB)
     }
 
@@ -39,6 +39,8 @@ extrR_reac <- reactive({
                  Sys.sleep(0.75)
                  incProgress(0.95)
                })
+ # SUAbalEr[, Value := round(Value,2)]
+  
   } else {
     
     SUAbalEr <- live_data$SUAb
@@ -89,7 +91,7 @@ observeEvent(input$updER, {
     } else {
     R_SWS_SHARE_PATH = "Z:"
     SetClientFiles("/srv/shiny-server/.R/PROD/")
-    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+    GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                        token = tokenSuaB)
   }
   
@@ -103,7 +105,7 @@ observeEvent(input$updER, {
     timePointYears = Dimension(name = "timePointYears", keys = sel_years )))
   
   SUAbalEr <- GetData(KeySUAbal)
-  
+ # SUAbalEr[, Value := round(Value,2)]
   # copy to compare tables with right decimals number
 
   SUAbalErComp <- copy(SUAbalEr)

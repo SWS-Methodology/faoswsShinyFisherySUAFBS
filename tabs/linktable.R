@@ -1,14 +1,14 @@
 # link table recall
 linktable_reac <- reactive({
   req(input$btn_year, input$btn_country, input$btn_start_year)
-  
+  input$updLT
   sel_country <- country_input[country_input$label == input$btn_country, code]
   where <- paste("geographic_area_m49 = '", sel_country, "'", sep = "")
   linktable <- ReadDatatable('link_table', where = where, readOnly = FALSE)
   linktable$percentage <- as.numeric(linktable$percentage)
   
   if(nrow(linktable) == 0){
-    linktable <- rbind(linktable, data.table(geographic_area_m49 =sel_country),
+    linktable <- rbind(linktable, data.table(geographic_area_m49 = sel_country),
                        fill = T)
   }
   
@@ -40,8 +40,22 @@ observeEvent(input$updLT, {
     
   } else {
     changeset <- Changeset('link_table')
-    AddModifications(changeset, updLinkTable)
+
+    sel_country <- country_input[country_input$label == input$btn_country, code]
+    where <- paste("geographic_area_m49 = '", sel_country, "'", sep = "")
+    linktable <- ReadDatatable('link_table', where = where, readOnly = FALSE)
+
+    # deletions <- linktable[!updLinkTable, on = c('__id', '__ts')]
+    
+    AddDeletions(changeset, linktable)
     Finalise(changeset)
+    
+    changeset <- Changeset('link_table')
+    #AddModifications(changeset, updLinkTable)
+    AddInsertions(changeset, updLinkTable)
+    Finalise(changeset)
+  
+    link_table_initial <<- updLinkTable
     
     showModal(modalDialog(
       title = "Link table updated." ,

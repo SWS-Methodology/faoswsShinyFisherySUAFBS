@@ -184,7 +184,7 @@ message('Saving datasets...')
   } else {
     R_SWS_SHARE_PATH = "Z:"
     SetClientFiles("/srv/shiny-server/.R/PROD/")
-    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+    GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                        token = tokenSuaUval)
   }
 
@@ -228,7 +228,7 @@ message('Saving datasets...')
     } else {
     R_SWS_SHARE_PATH = "Z:"
     SetClientFiles("/srv/shiny-server/.R/PROD/")
-    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+    GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                        token = tokenSuaU)
   }
   
@@ -271,7 +271,7 @@ message('Saving datasets...')
   } else {
     R_SWS_SHARE_PATH = "Z:"
     SetClientFiles("/srv/shiny-server/.R/PROD/")
-    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+    GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                        token = tokenSuaBval)
   }
   
@@ -315,7 +315,7 @@ message('Saving datasets...')
     } else {
     R_SWS_SHARE_PATH = "Z:"
     SetClientFiles("/srv/shiny-server/.R/PROD/")
-    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+    GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                        token = tokenSuaB)
   }
   
@@ -357,7 +357,7 @@ message('Saving datasets...')
   } else {
     R_SWS_SHARE_PATH = "Z:"
     SetClientFiles("/srv/shiny-server/.R/PROD/")
-    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+    GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                        token = tokenFbsFiasval)
   }
 
@@ -401,7 +401,7 @@ message('Saving datasets...')
     } else {
     R_SWS_SHARE_PATH = "Z:"
     SetClientFiles("/srv/shiny-server/.R/PROD/")
-    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+    GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                        token = tokenFbs)
   }
   
@@ -445,7 +445,7 @@ message('Saving datasets...')
     } else {
     R_SWS_SHARE_PATH = "Z:"
     SetClientFiles("/srv/shiny-server/.R/PROD/")
-    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+    GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                        token = tokenFbsFaostatval)
   }
   
@@ -488,7 +488,7 @@ message('Saving datasets...')
     } else {
     R_SWS_SHARE_PATH = "Z:"
     SetClientFiles("/srv/shiny-server/.R/PROD/")
-    GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+    GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                        token = tokenFbsFaostat)
   }
   

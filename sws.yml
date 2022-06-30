@@ -9,7 +9,7 @@ qa:
   
 production:
   certdir: C:/Users/Taglionic/OneDrive - Food and Agriculture Organization/Github/.R/Production
-  server: https://sws.fao.org:8181
+  server: https://sws.aws.fao.org:8181
   token: 06fe7ed4-08c8-4123-9ffb-a165289e7142
   share: "Z:"
     

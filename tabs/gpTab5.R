@@ -34,6 +34,7 @@ gpTab_reac <- reactive({
                    Sys.sleep(0.75)
                    incProgress(0.95)
                  })
+   # globalProduction[, Value := round(Value,2)]
     InitialDatasets$GP <- globalProduction
     
   } else {

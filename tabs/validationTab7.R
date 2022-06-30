@@ -241,7 +241,7 @@ output$availability <- renderRHandsontable({
   req(input$btn_country, input$btn_year, input$btn_start_year,input$btn_group_fbs_tab7,
       input$btn_ics_prod_tab7)
   if(is.null(input$sua_tab7)) return(NULL)
-  
+
   tab_updated <- rhandsontable::hot_to_r(input$sua_tab7)
   tab_updated <- tab_updated[ , -grep("F_", colnames(tab_updated)), with = FALSE ]
   
@@ -257,7 +257,7 @@ output$availability <- renderRHandsontable({
   sua_avail <- merge(tab2calc, elementSignTable[ , .(measured_element, sign)], 
                      by.x = 'Element', by.y = "measured_element", all.x = TRUE)
   
-  sua_avail <- sua_avail[, availability := round(sum(Value * sign, na.rm = TRUE), 3), 
+  sua_avail <- sua_avail[, availability := sum(Value * sign, na.rm = TRUE), # round(sum(Value * sign, na.rm = TRUE), 3), 
                          by = list(Country, FBSgroup, ICSprod, Year)]
   sua_avail[ , c('Element', 'Value', 'sign') := NULL]
   setkey(sua_avail)
@@ -440,6 +440,7 @@ observeEvent(input$save, { # Opening Observe event
                          timePointYears = Dimension(name = "timePointYears", keys = sel_years)))
                        
                        globalProduction <- GetData(KeyGlobal)
+                       # globalProduction[, Value := round(Value,2)]
                        
                      } else if(nrow(InitialDatasets$GP) > 0 &
                                unique(InitialDatasets$GP$geographicAreaM49_fi) != sel_country |
@@ -456,7 +457,7 @@ observeEvent(input$save, { # Opening Observe event
                          timePointYears = Dimension(name = "timePointYears", keys = sel_years)))
                        
                        globalProduction <- GetData(KeyGlobal)
-                       
+                      # globalProduction[, Value := round(Value,2)]
                      } else 
                      {
                        globalProduction <- InitialDatasets$GP
@@ -519,7 +520,7 @@ observeEvent(input$save, { # Opening Observe event
                                       Sys.sleep(0.75)
                                       incProgress(0.95)
                                     })
-                       
+                      # commodityDB[, Value := round(Value,2)]
                        commodityDB[geographicAreaM49_fi %in% c('830','833'), geographicAreaM49_fi := '826']
                        commodityDB$flagObservationStatus <- factor(commodityDB$flagObservationStatus,
                                                                    levels = c('M', 'O', 'N', '', 'X', 'T', 'E', 'I'), 
@@ -587,7 +588,7 @@ observeEvent(input$save, { # Opening Observe event
                        InitialDatasets$CDB <- commodityDB[!measuredElement %in% ValueElements]
                        InitialDatasets$CDBVal <- commodityDBValue
                        
-                     } else if(nrow(InitialDatasets$CDB) > 0 &
+                     } else if(nrow(InitialDatasets$CDB) > 0 & # Reload CDB if new country or years
                                unique(InitialDatasets$CDB$geographicAreaM49_fi) != sel_country |
                                min(unique(InitialDatasets$CDB$timePointYears)) != input$btn_start_year |
                                max(unique(InitialDatasets$CDB$timePointYears)) != input$btn_year)
@@ -614,7 +615,7 @@ observeEvent(input$save, { # Opening Observe event
                                       Sys.sleep(0.75)
                                       incProgress(0.95)
                                     })
-                       
+                      # commodityDB[, Value := round(Value,2)]
                        commodityDB[geographicAreaM49_fi %in% c('830','833'), geographicAreaM49_fi := '826']
                        commodityDB$flagObservationStatus <- factor(commodityDB$flagObservationStatus,
                                                                    levels = c('M', 'O', 'N', '', 'X', 'T', 'E', 'I'), 
@@ -664,7 +665,7 @@ observeEvent(input$save, { # Opening Observe event
                      SUAunbal <- SUAunbalResults$SUAunbal
                      initialUnbal <- SUAunbalResults$initialUnbal
                      
-                     if(input$csv_online == 1)
+                     if(input$csv_online == 1) # just read the table
                      {
                        modifiedSUA0 <-  rhandsontable::hot_to_r(input$sua_tab7)
                        modifiedSUA0 <- modifiedSUA0[ , -grep("F_", colnames(modifiedSUA0)), with = FALSE ]
@@ -681,7 +682,7 @@ observeEvent(input$save, { # Opening Observe event
                        
                        #  modifiedSUA <- modifiedSUA[!measuredElementSuaFbs %in% ValueElements]
                        
-                     } else if(input$csv_online == 2)
+                     } else if(input$csv_online == 2) # modify the .csv file
                      {
                        
                        #++ Pulling uploaded file ----
@@ -1428,9 +1429,8 @@ output$FPtab1 <- DT::renderDataTable({
  
   sel_country <- country_input[country_input$label == input$btn_country, code]
   
-  names(tab1)[names(tab1) == "Value"] <- 'value'
-  
   if(nrow(tab1) > 0){
+    names(tab1)[names(tab1) == "Value"] <- 'value'
     tab1[!is.na(value), value := round(value,3)]
     DT::datatable(tab1[geographicAreaM49_fi == sel_country], extensions = 'Buttons', filter = 'top',
                   rownames = FALSE, options = list(pageLength = 25,
@@ -1476,6 +1476,7 @@ output$FPinsuff <- DT::renderDataTable({
   
   if(nrow(tab1) > 0){
     tab1[!is.na(availablequantity), availablequantity := round(availablequantity,3)]
+
     tab1[!is.na(quantity2cover), quantity2cover := round(quantity2cover,3)]
     
     DT::datatable(tab1[geographicAreaM49_fi == sel_country], extensions = 'Buttons', filter = 'top',

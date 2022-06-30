@@ -132,8 +132,9 @@ CDBrecalc <- function(CDB, map_isscfc, new_map_isscfc, year = input$btn_year){
   
 
   # Link table for special period ICS group changes
-  link_table <- ReadDatatable("link_table")
+  link_table <- link_table_initial # ReadDatatable("link_table")
 
+  print(link_table)
   ## Checks on link table
   # quantity different from 100% allocated
   link_table[ , check := sum(percentage), by=c("geographic_area_m49","flow","start_year","end_year","from_code")]
@@ -261,7 +262,6 @@ t1 <- Sys.time()
   SUA <- rbind(globalProductionAggr, commodityDBAggr)
   yearVals <- unique(SUA$timePointYears)
   setnames(SUA, "ics", "measuredItemFaostat_L2")
-  
   SUA <- SUA[ , list(Value = sum(Value, na.rm = TRUE),
                      flagObservationStatus = max(flagObservationStatus),
                      flagMethod = "s"), by = list(geographicAreaM49_fi,
@@ -332,6 +332,10 @@ SUAbalCalc <- function(SUA, eR, use){
            'flagObservationStatus', 
            'flagMethod', 'sign') := list('5166', availability,
                                  'I', 'i', -1)]
+
+  # Threshold for unbalance new 17/01/2022
+  #rou <- rou[ , availability := round(availability)]
+  #
   
   setkey(rou)
   rou <- unique(rou)
@@ -408,7 +412,7 @@ SUAbalCalc <- function(SUA, eR, use){
     icsneg <- unique(secondaryneg$measuredItemFaostat_L2)
     setkey(secondaryneg, geographicAreaM49_fi, timePointYears,  measuredItemFaostat_L2, availability)
     prod2add <- unique(secondaryneg[ , .(geographicAreaM49_fi, timePointYears,  measuredItemFaostat_L2, availability) ])
-    
+ 
     # add production element with NA values and flags then estimate as in Francesca code with estimation flags
     prod2add[ , ':=' (measuredElementSuaFbs = '5510', Value = - availability,
                       flagObservationStatus = as.factor('I'), flagMethod = 'i', sign = 1)]
@@ -534,8 +538,13 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
   newTree <- merge(tree, unique(SUAinput[ measuredElementSuaFbs == '5423' & !is.na(Value),
                                           .(geographicAreaM49_fi, timePointYears, measuredItemFaostat_L2, Value)]), 
                    by.x = 'child', by.y = 'measuredItemFaostat_L2', all.x = TRUE, allow.cartesian = TRUE)
-  newTree[ , extraction_rate := Value ]
+ 
+  # Only substitute finite ER 18/01/2022
+  newTree[!is.na(Value) & Value != 0 & abs(Value) != Inf, extraction_rate := Value ]
   newTree[ , Value:= NULL]
+#  newTree[, extraction_rate := round(extraction_rate, 2)]
+  #
+  
 ##############################
   # #-- Recalculate availability using food imputation for primary products ----
   # food1 <- merge(SUAinput[availability > 0 & measuredElementSuaFbs == '5510'], 
@@ -574,7 +583,7 @@ SUAnewEr[ , c('ValueNew', 'flagObservationStatusNew', 'flagMethodNew'):=NULL]
   # SUAFood[ , sign := NULL ]
   
   ###############################
- 
+
   #--Food processing ----
   #undebug(foodProcessingComputation)
   message("fi_SUA-FBS: Calculating food processing")

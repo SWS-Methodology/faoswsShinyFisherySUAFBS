@@ -6,7 +6,7 @@ ui = fluidPage(
                 selectInput(inputId = "btn_country", 
                             label = 'Country', 
                             choices = country_input$label#, 
-                           # selected = 'Republic of Korea - 410'
+                            #selected = 'China - 156'
                 )       
          ),
          column(1, 

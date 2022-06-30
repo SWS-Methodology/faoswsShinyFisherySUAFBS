@@ -26,7 +26,7 @@ SUAelemTab_reac <- reactive({
     } else {
       R_SWS_SHARE_PATH = "Z:"
       SetClientFiles("/srv/shiny-server/.R/PROD/")
-      GetTestEnvironment(baseUrl = "https://sws.fao.org:8181",
+      GetTestEnvironment(baseUrl = "https://sws.aws.fao.org:8181",
                          token = tokenSuaB)
     }
   
@@ -55,6 +55,7 @@ SUAelemTab_reac <- reactive({
                  incProgress(0.95)
                })
   ValueElements <- c('5922', '5930', '5622', '5630')
+ # SUAbalElem[, Value := round(Value,2)]
   SUAbalElemVal <- copy(SUAbalElem)
   SUAbalElem <- SUAbalElem[!measuredElementSuaFbs %in% ValueElements]
   
